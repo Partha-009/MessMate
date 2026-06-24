@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MessMate – Meal Tracker</title>
+<style>
+  :root {
+    --primary: #6C63FF;
+    --primary-light: #EAE8FF;
+    --secondary: #FF6584;
+    --accent: #43D9AD;
+    --accent2: #FFB347;
+    --bg: #F7F6FF;
+    --card: #FFFFFF;
+    --text: #2D2A3E;
+    --text-sub: #7B7898;
+    --border: #E2E0F0;
+    --tick: #43D9AD;
+    --cross: #FF6584;
+    --shadow: 0 4px 24px rgba(108,99,255,0.10);
+    --radius: 16px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── AUTH ── */
+  #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; background: linear-gradient(135deg, #6C63FF 0%, #43D9AD 100%); }
+  .auth-card { background: var(--card); border-radius: 24px; padding: 2.5rem 2rem; width: 100%; max-width: 420px; box-shadow: 0 8px 40px rgba(0,0,0,0.18); }
+  .auth-logo { text-align: center; margin-bottom: 1.5rem; }
+  .auth-logo .logo-icon { font-size: 3rem; }
+  .auth-logo h1 { font-size: 2rem; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
+  .auth-logo p { color: var(--text-sub); font-size: 0.95rem; }
+  .auth-tabs { display: flex; gap: 0; background: var(--bg); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 1.5rem; }
+  .auth-tab { flex: 1; padding: 0.5rem; text-align: center; border: none; background: none; cursor: pointer; border-radius: 6px; font-size: 0.95rem; font-weight: 600; color: var(--text-sub); transition: all 0.2s; }
+  .auth-tab.active { background: var(--card); color: var(--primary); box-shadow: 0 2px 8px rgba(108,99,255,0.15); }
+  .form-group { margin-bottom: 1rem; }
+  .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group input { width: 100%; padding: 0.75rem 1rem; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem; color: var(--text); background: var(--bg); transition: border 0.2s; outline: none; }
+  .form-group input:focus { border-color: var(--primary); }
+  .btn-primary { width: 100%; padding: 0.85rem; background: linear-gradient(90deg, #6C63FF, #43D9AD); border: none; border-radius: var(--radius-sm); color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; transition: opacity 0.2s; }
+  .btn-primary:hover { opacity: 0.9; }
+  .auth-error { color: var(--cross); font-size: 0.85rem; margin-top: 0.5rem; text-align: center; }
+
+  /* ── APP SHELL ── */
+  #app-screen { display: none; min-height: 100vh; flex-direction: column; }
+  .topbar { background: linear-gradient(90deg, #6C63FF, #5a54d4); color: #fff; padding: 0 1.5rem; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .topbar-logo { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; }
+  .topbar-logo span { color: #43D9AD; }
+  .topbar-right { display: flex; align-items: center; gap: 1rem; }
+  .topbar-user { font-size: 0.9rem; opacity: 0.85; }
+  .btn-logout { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 0.35rem 0.9rem; border-radius: 20px; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
+  .btn-logout:hover { background: rgba(255,255,255,0.35); }
+
+  /* ── NAV ── */
+  .bottom-nav { background: var(--card); border-top: 1px solid var(--border); display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; box-shadow: 0 -2px 16px rgba(108,99,255,0.08); }
+  .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.6rem 0.2rem; border: none; background: none; cursor: pointer; color: var(--text-sub); font-size: 0.7rem; font-weight: 600; gap: 3px; transition: color 0.2s; }
+  .nav-btn .nav-icon { font-size: 1.4rem; }
+  .nav-btn.active { color: var(--primary); }
+  .nav-btn.active .nav-icon { transform: scale(1.15); }
+
+  /* ── CONTENT ── */
+  .content { padding: 1rem 1rem 5rem; max-width: 900px; margin: 0 auto; width: 100%; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .section-title { font-size: 1.3rem; font-weight: 800; color: var(--text); }
+  .section-sub { font-size: 0.85rem; color: var(--text-sub); margin-top: 2px; }
+  .card { background: var(--card); border-radius: var(--radius); padding: 1.25rem; box-shadow: var(--shadow); margin-bottom: 1rem; border: 1px solid var(--border); }
+
+  /* ── MEAL TRACKER ── */
+  .week-label { font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 0.6rem; }
+  .meal-table-wrap { overflow-x: auto; }
+  .meal-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.82rem; }
+  .meal-table th { background: linear-gradient(90deg, #6C63FF, #5a54d4); color: #fff; padding: 0.5rem 0.4rem; text-align: center; font-weight: 700; white-space: nowrap; }
+  .meal-table th:first-child { text-align: left; padding-left: 0.8rem; border-radius: 10px 0 0 0; min-width: 110px; }
+  .meal-table th:last-child { border-radius: 0 10px 0 0; }
+  .meal-table td { padding: 0.4rem 0.3rem; text-align: center; border-bottom: 1px solid var(--border); }
+  .meal-table td:first-child { text-align: left; padding-left: 0.8rem; font-weight: 600; font-size: 0.85rem; color: var(--text); }
+  .meal-table tr:last-child td { border-bottom: none; }
+  .meal-table tr:nth-child(even) { background: #FAF9FF; }
+  .day-header { background: #F0EEFF !important; font-weight: 700; color: var(--primary); font-size: 0.78rem; padding: 0.3rem 0.4rem !important; text-align: center; letter-spacing: 0.5px; }
+  .meal-cell { cursor: pointer; width: 34px; height: 30px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; transition: all 0.15s; border: 1.5px solid transparent; }
+  .meal-cell.tick { background: #E6FBF5; border-color: #43D9AD; color: #1a9e72; }
+  .meal-cell.cross { background: #FFF0F3; border-color: #FF6584; color: #d63060; }
+  .meal-cell.empty { background: #F5F4FF; border-color: #D8D6F0; color: #aaa; }
+  .meal-cell:hover { transform: scale(1.12); }
+  .month-count-badge { display: inline-block; background: var(--primary-light); color: var(--primary); font-size: 0.75rem; font-weight: 700; border-radius: 20px; padding: 2px 10px; }
+  .week-nav { display: flex; align-items: center; gap: 0.5rem; }
+  .week-nav button { background: var(--primary-light); border: none; color: var(--primary); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 1.1rem; font-weight: 700; transition: background 0.2s; }
+  .week-nav button:hover { background: var(--primary); color: #fff; }
+  .week-nav span { font-size: 0.85rem; font-weight: 700; color: var(--text); min-width: 80px; text-align: center; }
+
+  /* ── MEMBERS ── */
+  .member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.75rem; }
+  .member-card { background: var(--card); border: 1.5px solid var(--border); border-radius: 12px; padding: 1rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; position: relative; transition: box-shadow 0.2s; }
+  .member-card:hover { box-shadow: 0 4px 16px rgba(108,99,255,0.15); }
+  .member-avatar { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; color: #fff; }
+  .member-name { font-size: 0.9rem; font-weight: 700; color: var(--text); text-align: center; }
+  .member-meal-count { font-size: 0.78rem; color: var(--text-sub); }
+  .btn-del { position: absolute; top: 6px; right: 6px; background: #FFF0F3; border: none; color: var(--cross); width: 24px; height: 24px; border-radius: 6px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; }
+  .btn-del:hover { background: var(--cross); color: #fff; }
+  .add-member-form { display: flex; gap: 0.5rem; margin-top: 1rem; }
+  .add-member-form input { flex: 1; padding: 0.65rem 1rem; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 0.95rem; outline: none; color: var(--text); background: var(--bg); }
+  .add-member-form input:focus { border-color: var(--primary); }
+  .btn-add { background: linear-gradient(90deg, #6C63FF, #43D9AD); border: none; color: #fff; padding: 0.65rem 1.2rem; border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .member-count-info { font-size: 0.85rem; color: var(--text-sub); margin-bottom: 0.75rem; }
+
+  /* ── COSTS ── */
+  .cost-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  @media(min-width:600px) { .cost-grid { grid-template-columns: repeat(3, 1fr); } }
+  .cost-cat-card { background: var(--card); border-radius: 12px; border: 1.5px solid var(--border); padding: 1rem; cursor: pointer; transition: box-shadow 0.2s, border-color 0.2s; }
+  .cost-cat-card:hover { border-color: var(--primary); box-shadow: 0 4px 16px rgba(108,99,255,0.13); }
+  .cost-cat-icon { font-size: 2rem; margin-bottom: 0.3rem; }
+  .cost-cat-name { font-size: 0.88rem; font-weight: 700; color: var(--text); }
+  .cost-cat-total { font-size: 1.1rem; font-weight: 800; color: var(--primary); margin-top: 2px; }
+  .cost-entry-list { list-style: none; }
+  .cost-entry-item { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+  .cost-entry-item:last-child { border-bottom: none; }
+  .cost-entry-name { font-weight: 600; color: var(--text); }
+  .cost-entry-amount { font-weight: 700; color: var(--primary); }
+  .cost-entry-date { font-size: 0.75rem; color: var(--text-sub); }
+  .btn-back { background: var(--primary-light); border: none; color: var(--primary); padding: 0.4rem 0.9rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 700; }
+  .receipt-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; }
+  .receipt-placeholder { width: 48px; height: 48px; background: #F0EEFF; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; border: 1px solid var(--border); }
+  .add-cost-form { background: var(--bg); border-radius: var(--radius-sm); padding: 1rem; margin-top: 1rem; }
+  .add-cost-form .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .add-cost-form input, .add-cost-form select { flex: 1; min-width: 100px; padding: 0.6rem 0.8rem; border: 1.5px solid var(--border); border-radius: 6px; font-size: 0.9rem; color: var(--text); background: var(--card); outline: none; }
+  .add-cost-form input:focus, .add-cost-form select:focus { border-color: var(--primary); }
+  .upload-label { display: flex; align-items: center; gap: 0.4rem; background: var(--primary-light); color: var(--primary); padding: 0.6rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+  .upload-label input { display: none; }
+  .month-total-bar { background: linear-gradient(90deg, #6C63FF, #43D9AD); border-radius: 12px; padding: 1rem 1.5rem; color: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .month-total-bar .label { font-size: 0.85rem; opacity: 0.88; }
+  .month-total-bar .amount { font-size: 1.6rem; font-weight: 800; }
+
+  /* ── STATS ── */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+  @media(min-width:600px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+  .stat-card { background: var(--card); border-radius: 12px; padding: 1rem; border: 1.5px solid var(--border); text-align: center; }
+  .stat-val { font-size: 1.7rem; font-weight: 800; color: var(--primary); }
+  .stat-lbl { font-size: 0.78rem; color: var(--text-sub); font-weight: 600; margin-top: 2px; }
+  .progress-bar-wrap { background: var(--border); border-radius: 20px; height: 8px; margin-top: 6px; overflow: hidden; }
+  .progress-bar-fill { height: 8px; border-radius: 20px; background: linear-gradient(90deg, #6C63FF, #43D9AD); }
+
+  /* ── MODAL ── */
+  .modal-bg { position: fixed; inset: 0; background: rgba(45,42,62,0.45); z-index: 200; display: none; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--card); border-radius: var(--radius); padding: 1.5rem; max-width: 480px; width: 100%; box-shadow: 0 8px 40px rgba(0,0,0,0.18); max-height: 90vh; overflow-y: auto; }
+  .modal h3 { font-size: 1.1rem; font-weight: 800; color: var(--text); margin-bottom: 1rem; }
+  .modal-close { float: right; background: var(--bg); border: none; color: var(--text-sub); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 1.1rem; }
+  .img-preview { max-width: 100%; border-radius: 8px; margin-top: 0.75rem; }
+
+  /* ── PAGE VISIBILITY ── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── TOAST ── */
+  #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #2D2A3E; color: #fff; padding: 0.6rem 1.4rem; border-radius: 24px; font-size: 0.9rem; font-weight: 600; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+
+  .color-0 { background: #6C63FF; } .color-1 { background: #FF6584; } .color-2 { background: #43D9AD; }
+  .color-3 { background: #FFB347; } .color-4 { background: #A855F7; } .color-5 { background: #EF4444; }
+  .color-6 { background: #3B82F6; } .color-7 { background: #10B981; } .color-8 { background: #F59E0B; }
+  .color-9 { background: #EC4899; } .color-10 { background: #14B8A6; } .color-11 { background: #8B5CF6; }
+  .color-12 { background: #F97316; } .color-13 { background: #06B6D4; } .color-14 { background: #84CC16; }
+  .color-15 { background: #EF4444; } .color-16 { background: #D946EF; } .color-17 { background: #0EA5E9; }
+  .color-18 { background: #22C55E; } .color-19 { background: #E11D48; }
+
+  .btn-del-cost { background: #FFF0F3; border: none; color: #FF6584; padding: 2px 8px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-icon">🍽️</div>
+      <h1>MessMate</h1>
+      <p>Your cheerful meal tracker</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="showTab('login')">Login</button>
+      <button class="auth-tab" onclick="showTab('register')">Register</button>
+    </div>
+    <div id="login-form">
+      <div class="form-group"><label>Username</label><input id="login-user" type="text" placeholder="Enter username" /></div>
+      <div class="form-group"><label>Password</label><input id="login-pass" type="password" placeholder="Enter password" /></div>
+      <button class="btn-primary" onclick="doLogin()">Login 🚀</button>
+      <div id="login-error" class="auth-error"></div>
+    </div>
+    <div id="register-form" style="display:none">
+      <div class="form-group"><label>Full Name</label><input id="reg-name" type="text" placeholder="Your full name" /></div>
+      <div class="form-group"><label>Username</label><input id="reg-user" type="text" placeholder="Choose a username" /></div>
+      <div class="form-group"><label>Password</label><input id="reg-pass" type="password" placeholder="Choose a password" /></div>
+      <button class="btn-primary" onclick="doRegister()">Create Account ✨</button>
+      <div id="reg-error" class="auth-error"></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <div class="topbar">
+    <div class="topbar-logo">Mess<span>Mate</span> 🍽️</div>
+    <div class="topbar-right">
+      <span class="topbar-user" id="topbar-user"></span>
+      <button class="btn-logout" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- TRACKER PAGE -->
+    <div class="page active" id="page-tracker">
+      <div class="section-header">
+        <div>
+          <div class="section-title">🗓️ Meal Tracker</div>
+          <div class="section-sub" id="tracker-month-label"></div>
+        </div>
+        <div class="week-nav">
+          <button onclick="prevWeek()">&#8592;</button>
+          <span id="week-label">Week 1</span>
+          <button onclick="nextWeek()">&#8594;</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0.75rem;">
+        <div class="meal-table-wrap">
+          <table class="meal-table" id="meal-table">
+            <thead id="meal-thead"></thead>
+            <tbody id="meal-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" style="padding:1rem;">
+        <div style="font-size:0.85rem;font-weight:700;color:var(--text-sub);margin-bottom:0.5rem;">📊 MONTHLY MEAL TOTALS</div>
+        <div id="monthly-totals"></div>
+      </div>
+    </div>
+
+    <!-- MEMBERS PAGE -->
+    <div class="page" id="page-members">
+      <div class="section-header">
+        <div>
+          <div class="section-title">👥 Members</div>
+          <div class="section-sub" id="member-count-label">0 / 20 members</div>
+        </div>
+      </div>
+      <div class="add-member-form">
+        <input id="new-member-name" type="text" placeholder="Enter member name..." maxlength="30" />
+        <button class="btn-add" onclick="addMember()">+ Add</button>
+      </div>
+      <div style="margin-top:1rem;" id="member-grid-container"></div>
+    </div>
+
+    <!-- COSTS PAGE -->
+    <div class="page" id="page-costs">
+      <div id="costs-list-view">
+        <div class="month-total-bar">
+          <div>
+            <div class="label">Total Spend This Month</div>
+            <div class="amount" id="cost-month-total">৳0.00</div>
+          </div>
+          <div style="font-size:2rem;">💰</div>
+        </div>
+        <div class="section-title" style="margin-bottom:0.75rem;">🛒 Food Categories</div>
+        <div class="cost-grid" id="cost-cat-grid"></div>
+        <div class="card" style="margin-top:1rem;">
+          <div style="font-size:0.88rem;font-weight:700;color:var(--text-sub);margin-bottom:0.75rem;">ADD EXPENSE</div>
+          <div class="add-cost-form" style="padding:0;">
+            <div class="row" style="margin-bottom:0.5rem;">
+              <select id="cost-cat-select">
+                <option value="Chicken">🍗 Chicken</option>
+                <option value="Fish">🐟 Fish</option>
+                <option value="Vegetables">🥦 Vegetables</option>
+                <option value="Oil">🫙 Oil</option>
+                <option value="Spices">🌶️ Spices</option>
+                <option value="Other">📦 Other</option>
+              </select>
+              <input id="cost-item-name" type="text" placeholder="Item name" />
+            </div>
+            <div class="row" style="margin-bottom:0.5rem;">
+              <input id="cost-amount" type="number" placeholder="Amount (৳)" min="0" step="0.01" />
+              <input id="cost-date" type="date" />
+            </div>
+            <div class="row">
+              <label class="upload-label">
+                📎 Receipt
+                <input type="file" id="receipt-upload" accept="image/*,application/pdf" onchange="handleReceiptUpload(this)" />
+              </label>
+              <span id="receipt-name" style="font-size:0.8rem;color:var(--text-sub);align-self:center;"></span>
+              <button class="btn-add" style="margin-left:auto;" onclick="addCostEntry()">+ Add</button>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:0.5rem;">
+          <div style="font-size:0.88rem;font-weight:700;color:var(--text-sub);margin-bottom:0.75rem;">RECENT EXPENSES</div>
+          <ul class="cost-entry-list" id="recent-costs-list"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS PAGE -->
+    <div class="page" id="page-stats">
+      <div class="section-title" style="margin-bottom:1rem;">📈 Statistics</div>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="card">
+        <div style="font-size:0.88rem;font-weight:700;color:var(--text-sub);margin-bottom:0.75rem;">🧑 PER MEMBER THIS MONTH</div>
+        <div id="per-member-stats"></div>
+      </div>
+      <div class="card">
+        <div style="font-size:0.88rem;font-weight:700;color:var(--text-sub);margin-bottom:0.75rem;">🛒 SPENDING BY CATEGORY</div>
+        <div id="cat-spend-stats"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="showPage('tracker',this)">
+      <span class="nav-icon">🗓️</span>Tracker
+    </button>
+    <button class="nav-btn" onclick="showPage('members',this)">
+      <span class="nav-icon">👥</span>Members
+    </button>
+    <button class="nav-btn" onclick="showPage('costs',this)">
+      <span class="nav-icon">💸</span>Costs
+    </button>
+    <button class="nav-btn" onclick="showPage('stats',this)">
+      <span class="nav-icon">📈</span>Stats
+    </button>
+  </nav>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal-bg" onclick="closeModal(event)">
+  <div class="modal" id="modal-content">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── STATE ──
+let DB = JSON.parse(localStorage.getItem('messmate_db') || '{}');
+if (!DB.users) DB.users = {};
+if (!DB.members) DB.members = [];
+if (!DB.meals) DB.meals = {};
+if (!DB.costs) DB.costs = [];
+let currentUser = null;
+let currentWeekOffset = 0;
+let currentReceiptData = null;
+let currentReceiptName = '';
+
+function saveDB() { localStorage.setItem('messmate_db', JSON.stringify(DB)); }
+
+// ── HELPERS ──
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function today() { return new Date(); }
+
+function getMonthKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+
+function getMondayOfWeek(weekOffset) {
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + weekOffset * 7);
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+
+function formatDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function dayNames() { return ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; }
+
+function getInitials(name) {
+  return name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+}
+
+// ── AUTH ──
+function showTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+  document.getElementById('login-form').style.display = tab==='login'?'':'none';
+  document.getElementById('register-form').style.display = tab==='register'?'':'none';
+}
+
+function doLogin() {
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value;
+  if (!u||!p) { document.getElementById('login-error').textContent='Please fill all fields'; return; }
+  const user = DB.users[u];
+  if (!user || user.password !== btoa(p)) { document.getElementById('login-error').textContent='Invalid username or password'; return; }
+  loginSuccess(u, user.name);
+}
+
+function doRegister() {
+  const name = document.getElementById('reg-name').value.trim();
+  const u = document.getElementById('reg-user').value.trim();
+  const p = document.getElementById('reg-pass').value;
+  if (!name||!u||!p) { document.getElementById('reg-error').textContent='Please fill all fields'; return; }
+  if (DB.users[u]) { document.getElementById('reg-error').textContent='Username already taken'; return; }
+  if (p.length < 4) { document.getElementById('reg-error').textContent='Password must be at least 4 chars'; return; }
+  DB.users[u] = { name, password: btoa(p) };
+  saveDB();
+  toast('Account created! Please login.');
+  showTab('login');
+  document.getElementById('login-user').value = u;
+}
+
+function loginSuccess(username, name) {
+  currentUser = { username, name };
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'flex';
+  document.getElementById('topbar-user').textContent = '👋 ' + name;
+  initApp();
+}
+
+function doLogout() {
+  currentUser = null;
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+  showTab('login');
+}
+
+// ── NAV ──
+function showPage(page, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (page==='tracker') renderTracker();
+  if (page==='members') renderMembers();
+  if (page==='costs') renderCosts();
+  if (page==='stats') renderStats();
+}
+
+// ── INIT ──
+function initApp() {
+  const d = new Date();
+  document.getElementById('cost-date').value = formatDate(d);
+  currentWeekOffset = 0;
+  renderTracker();
+  renderMembers();
+}
+
+// ── TRACKER ──
+function prevWeek() { currentWeekOffset--; renderTracker(); }
+function nextWeek() { currentWeekOffset++; renderTracker(); }
+
+function renderTracker() {
+  const monday = getMondayOfWeek(currentWeekOffset);
+  const days = Array.from({length:7}, (_,i) => {
+    const d = new Date(monday); d.setDate(monday.getDate()+i); return d;
+  });
+  const monthLabel = monday.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  document.getElementById('tracker-month-label').textContent = monthLabel;
+  const weekNum = getWeekNumber(monday);
+  document.getElementById('week-label').textContent = `Week ${weekNum}`;
+
+  // Head
+  const thead = document.getElementById('meal-thead');
+  const dn = dayNames();
+  let hRow = '<tr><th>Member</th>';
+  days.forEach((d,i) => {
+    hRow += `<th colspan="2">${dn[i]}<br><span style="font-size:0.7rem;opacity:0.8;">${d.getDate()}</span></th>`;
+  });
+  hRow += '<th>Month<br>Total</th></tr>';
+  thead.innerHTML = hRow;
+
+  // Sub-header meals
+  let subRow = '<tr><td></td>';
+  days.forEach(() => { subRow += '<td class="day-header">🌅</td><td class="day-header">🌙</td>'; });
+  subRow += '<td></td></tr>';
+
+  // Body
+  const tbody = document.getElementById('meal-tbody');
+  const monthKey = getMonthKey(monday);
+  if (!DB.meals[monthKey]) DB.meals[monthKey] = {};
+  const mealData = DB.meals[monthKey];
+
+  let bodyHTML = subRow;
+  DB.members.forEach(m => {
+    let row = `<td>${m.name}</td>`;
+    days.forEach(d => {
+      const dk = formatDate(d);
+      const ms = mealData[m.id] || {};
+      const b = ms[dk+'_b'] || '';
+      const l = ms[dk+'_l'] || '';
+      row += `<td><span class="meal-cell ${b==='tick'?'tick':b==='cross'?'cross':'empty'}" onclick="toggleMeal('${m.id}','${dk}','b')">${b==='tick'?'✓':b==='cross'?'✗':'·'}</span></td>`;
+      row += `<td><span class="meal-cell ${l==='tick'?'tick':l==='cross'?'cross':'empty'}" onclick="toggleMeal('${m.id}','${dk}','l')">${l==='tick'?'✓':l==='cross'?'✗':'·'}</span></td>`;
+    });
+    // Month total
+    let total = 0;
+    const ms2 = mealData[m.id] || {};
+    Object.values(ms2).forEach(v => { if(v==='tick') total++; });
+    row += `<td><span class="month-count-badge">${total}</span></td>`;
+    bodyHTML += `<tr>${row}</tr>`;
+  });
+
+  if (DB.members.length === 0) {
+    bodyHTML += '<tr><td colspan="17" style="text-align:center;color:var(--text-sub);padding:2rem;font-size:0.9rem;">No members yet. Go to Members tab to add some! 👥</td></tr>';
+  }
+
+  tbody.innerHTML = bodyHTML;
+
+  // Monthly totals
+  renderMonthlyTotals(monthKey);
+}
+
+function getWeekNumber(d) {
+  const jan1 = new Date(d.getFullYear(),0,1);
+  return Math.ceil((((d-jan1)/86400000)+jan1.getDay()+1)/7);
+}
+
+function toggleMeal(memberId, dateKey, slot) {
+  const monday = getMondayOfWeek(currentWeekOffset);
+  const monthKey = getMonthKey(monday);
+  if (!DB.meals[monthKey]) DB.meals[monthKey] = {};
+  if (!DB.meals[monthKey][memberId]) DB.meals[monthKey][memberId] = {};
+  const cur = DB.meals[monthKey][memberId][dateKey+'_'+slot] || '';
+  const next = cur===''?'tick':cur==='tick'?'cross':'';
+  DB.meals[monthKey][memberId][dateKey+'_'+slot] = next;
+  saveDB();
+  renderTracker();
+}
+
+function renderMonthlyTotals(monthKey) {
+  const mealData = DB.meals[monthKey] || {};
+  let html = '';
+  DB.members.forEach(m => {
+    let total = 0;
+    const ms = mealData[m.id] || {};
+    Object.values(ms).forEach(v => { if(v==='tick') total++; });
+    const max = 62;
+    const pct = Math.min(100, Math.round(total/max*100));
+    html += `<div style="margin-bottom:0.6rem;display:flex;align-items:center;gap:0.75rem;">
+      <span style="font-size:0.85rem;font-weight:600;min-width:100px;color:var(--text);">${m.name}</span>
+      <div style="flex:1;"><div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div></div>
+      <span class="month-count-badge">${total} meals</span>
+    </div>`;
+  });
+  if (!html) html = '<div style="color:var(--text-sub);font-size:0.85rem;">No members added yet.</div>';
+  document.getElementById('monthly-totals').innerHTML = html;
+}
+
+// ── MEMBERS ──
+function renderMembers() {
+  document.getElementById('member-count-label').textContent = `${DB.members.length} / 20 members`;
+  let html = '';
+  if (DB.members.length === 0) {
+    html = '<div style="text-align:center;color:var(--text-sub);padding:2rem;font-size:0.9rem;">No members yet. Add your first member above! 🎉</div>';
+  } else {
+    html = '<div class="member-grid">';
+    DB.members.forEach((m,i) => {
+      const colorCls = 'color-'+(i%20);
+      const monthKey = getMonthKey(new Date());
+      const mealData = DB.meals[monthKey] || {};
+      let total = 0;
+      const ms = mealData[m.id] || {};
+      Object.values(ms).forEach(v => { if(v==='tick') total++; });
+      html += `<div class="member-card">
+        <button class="btn-del" onclick="deleteMember('${m.id}')" title="Remove">✕</button>
+        <div class="member-avatar ${colorCls}">${getInitials(m.name)}</div>
+        <div class="member-name">${m.name}</div>
+        <div class="member-meal-count">${total} meals this month</div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+  document.getElementById('member-grid-container').innerHTML = html;
+}
+
+function addMember() {
+  const inp = document.getElementById('new-member-name');
+  const name = inp.value.trim();
+  if (!name) { toast('Please enter a name'); return; }
+  if (DB.members.length >= 20) { toast('Maximum 20 members reached!'); return; }
+  if (DB.members.find(m => m.name.toLowerCase() === name.toLowerCase())) { toast('Member already exists'); return; }
+  DB.members.push({ id: 'mem_'+Date.now(), name });
+  saveDB();
+  inp.value = '';
+  renderMembers();
+  toast(`${name} added! 🎉`);
+}
+
+function deleteMember(id) {
+  if (!confirm('Remove this member? Their meal data will be kept.')) return;
+  DB.members = DB.members.filter(m => m.id !== id);
+  saveDB();
+  renderMembers();
+  renderTracker();
+  toast('Member removed.');
+}
+
+// ── COSTS ──
+const CATS = [
+  { key:'Chicken', icon:'🍗' },
+  { key:'Fish',    icon:'🐟' },
+  { key:'Vegetables', icon:'🥦' },
+  { key:'Oil',     icon:'🫙' },
+  { key:'Spices',  icon:'🌶️' },
+  { key:'Other',   icon:'📦' },
+];
+
+function getMonthCosts() {
+  const mk = getMonthKey(new Date());
+  return DB.costs.filter(c => c.monthKey === mk);
+}
+
+function renderCosts() {
+  const costs = getMonthCosts();
+  const total = costs.reduce((s,c) => s+c.amount, 0);
+  document.getElementById('cost-month-total').textContent = '৳'+total.toFixed(2);
+
+  let catHTML = '';
+  CATS.forEach(cat => {
+    const catTotal = costs.filter(c=>c.category===cat.key).reduce((s,c)=>s+c.amount,0);
+    catHTML += `<div class="cost-cat-card" onclick="showCatDetail('${cat.key}')">
+      <div class="cost-cat-icon">${cat.icon}</div>
+      <div class="cost-cat-name">${cat.key}</div>
+      <div class="cost-cat-total">৳${catTotal.toFixed(2)}</div>
+    </div>`;
+  });
+  document.getElementById('cost-cat-grid').innerHTML = catHTML;
+
+  // Recent
+  const recent = [...costs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+  let recHTML = '';
+  recent.forEach(c => {
+    const cat = CATS.find(x=>x.key===c.category)||{icon:'📦'};
+    recHTML += `<li class="cost-entry-item">
+      <div>
+        <div class="cost-entry-name">${cat.icon} ${c.itemName}</div>
+        <div class="cost-entry-date">${c.date} · ${c.category}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        ${c.receipt?`<div class="receipt-placeholder" onclick="viewReceipt('${c.id}')" title="View receipt">📄</div>`:''}
+        <span class="cost-entry-amount">৳${c.amount.toFixed(2)}</span>
+        <button class="btn-del-cost" onclick="deleteCost('${c.id}')">✕</button>
+      </div>
+    </li>`;
+  });
+  document.getElementById('recent-costs-list').innerHTML = recHTML || '<li style="color:var(--text-sub);font-size:0.85rem;text-align:center;padding:1rem;">No expenses this month yet.</li>';
+}
+
+function showCatDetail(catKey) {
+  const cat = CATS.find(c=>c.key===catKey)||{icon:'📦',key:catKey};
+  const costs = getMonthCosts().filter(c=>c.category===catKey).sort((a,b)=>b.date.localeCompare(a.date));
+  let html = `<div style="margin-bottom:0.5rem;font-size:1rem;font-weight:800;color:var(--primary);">Total: ৳${costs.reduce((s,c)=>s+c.amount,0).toFixed(2)}</div>`;
+  if (!costs.length) html += '<div style="color:var(--text-sub);padding:1rem 0;">No entries yet.</div>';
+  costs.forEach(c => {
+    html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border);">
+      <div><div style="font-weight:600;">${c.itemName}</div><div style="font-size:0.78rem;color:var(--text-sub);">${c.date}</div></div>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        ${c.receipt?`<div class="receipt-placeholder" onclick="viewReceipt('${c.id}')" title="View receipt">📄</div>`:''}
+        <span style="font-weight:700;color:var(--primary);">৳${c.amount.toFixed(2)}</span>
+      </div>
+    </div>`;
+  });
+  openModal(`${cat.icon} ${catKey}`, html);
+}
+
+function handleReceiptUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    currentReceiptData = e.target.result;
+    currentReceiptName = file.name;
+    document.getElementById('receipt-name').textContent = '✅ '+file.name.slice(0,20);
+  };
+  reader.readAsDataURL(file);
+}
+
+function addCostEntry() {
+  const cat = document.getElementById('cost-cat-select').value;
+  const name = document.getElementById('cost-item-name').value.trim();
+  const amt = parseFloat(document.getElementById('cost-amount').value);
+  const date = document.getElementById('cost-date').value;
+  if (!name) { toast('Enter item name'); return; }
+  if (isNaN(amt)||amt<=0) { toast('Enter valid amount'); return; }
+  if (!date) { toast('Select a date'); return; }
+  const mk = getMonthKey(new Date(date+'T00:00:00'));
+  DB.costs.push({
+    id: 'c_'+Date.now(),
+    category: cat,
+    itemName: name,
+    amount: amt,
+    date,
+    monthKey: mk,
+    receipt: currentReceiptData || null,
+    receiptName: currentReceiptName || ''
+  });
+  saveDB();
+  document.getElementById('cost-item-name').value = '';
+  document.getElementById('cost-amount').value = '';
+  currentReceiptData = null;
+  currentReceiptName = '';
+  document.getElementById('receipt-name').textContent = '';
+  document.getElementById('receipt-upload').value = '';
+  renderCosts();
+  toast('Expense added! 💸');
+}
+
+function deleteCost(id) {
+  DB.costs = DB.costs.filter(c=>c.id!==id);
+  saveDB();
+  renderCosts();
+  toast('Deleted.');
+}
+
+function viewReceipt(id) {
+  const c = DB.costs.find(x=>x.id===id);
+  if (!c||!c.receipt) return;
+  if (c.receipt.startsWith('data:application/pdf')) {
+    const w = window.open('');
+    w.document.write(`<iframe src="${c.receipt}" style="width:100%;height:100vh;border:none;"></iframe>`);
+  } else {
+    openModal('📄 '+c.receiptName, `<img src="${c.receipt}" class="img-preview" />`);
+  }
+}
+
+// ── STATS ──
+function renderStats() {
+  const mk = getMonthKey(new Date());
+  const mealData = DB.meals[mk] || {};
+  const costs = getMonthCosts();
+  let totalMeals = 0;
+  DB.members.forEach(m => {
+    const ms = mealData[m.id] || {};
+    Object.values(ms).forEach(v => { if(v==='tick') totalMeals++; });
+  });
+  const totalSpend = costs.reduce((s,c)=>s+c.amount,0);
+  const avgPerMeal = totalMeals > 0 ? totalSpend/totalMeals : 0;
+  const statsGrid = document.getElementById('stats-grid');
+  statsGrid.innerHTML = `
+    <div class="stat-card"><div class="stat-val">${DB.members.length}</div><div class="stat-lbl">Members</div></div>
+    <div class="stat-card"><div class="stat-val">${totalMeals}</div><div class="stat-lbl">Meals This Month</div></div>
+    <div class="stat-card"><div class="stat-val">৳${totalSpend.toFixed(0)}</div><div class="stat-lbl">Total Spend</div></div>
+    <div class="stat-card"><div class="stat-val">৳${avgPerMeal.toFixed(1)}</div><div class="stat-lbl">Avg / Meal</div></div>
+  `;
+  // Per member
+  let pmHTML = '';
+  DB.members.forEach((m,i) => {
+    const ms = mealData[m.id] || {};
+    let cnt = 0; Object.values(ms).forEach(v=>{ if(v==='tick') cnt++; });
+    const colorCls='color-'+(i%20);
+    const pct = Math.min(100,Math.round(cnt/62*100));
+    pmHTML += `<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.7rem;">
+      <div class="member-avatar ${colorCls}" style="width:36px;height:36px;font-size:0.9rem;flex-shrink:0;">${getInitials(m.name)}</div>
+      <div style="flex:1;">
+        <div style="font-size:0.85rem;font-weight:700;">${m.name}</div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+      </div>
+      <span class="month-count-badge">${cnt}</span>
+    </div>`;
+  });
+  document.getElementById('per-member-stats').innerHTML = pmHTML || '<div style="color:var(--text-sub);font-size:0.85rem;">No data yet.</div>';
+
+  // Category spend
+  let catHTML = '';
+  const totalCat = costs.reduce((s,c)=>s+c.amount,0)||1;
+  CATS.forEach(cat => {
+    const t = costs.filter(c=>c.category===cat.key).reduce((s,c)=>s+c.amount,0);
+    const pct = Math.round(t/totalCat*100);
+    catHTML += `<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;">
+      <span style="font-size:1.3rem;width:28px;">${cat.icon}</span>
+      <div style="flex:1;">
+        <div style="font-size:0.85rem;font-weight:700;">${cat.key}</div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+      </div>
+      <span style="font-size:0.85rem;font-weight:700;color:var(--primary);">৳${t.toFixed(0)}</span>
+    </div>`;
+  });
+  document.getElementById('cat-spend-stats').innerHTML = catHTML || '<div style="color:var(--text-sub);font-size:0.85rem;">No expenses yet.</div>';
+}
+
+// ── MODAL ──
+function openModal(title, body) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = body;
+  document.getElementById('modal-bg').classList.add('open');
+}
+function closeModal(e) {
+  if (!e || e.target===document.getElementById('modal-bg') || e.currentTarget.classList.contains('modal-close')) {
+    document.getElementById('modal-bg').classList.remove('open');
+  }
+}
+
+// ── MONTH RESET CHECK ──
+function checkMonthReset() {
+  const nowMK = getMonthKey(new Date());
+  if (!DB.lastMonth) DB.lastMonth = nowMK;
+  if (DB.lastMonth !== nowMK) {
+    // New month — data auto-segmented by monthKey, nothing to reset
+    DB.lastMonth = nowMK;
+    saveDB();
+  }
+}
+
+// On load
+checkMonthReset();
+</script>
+</body>
+</html>

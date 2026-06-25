@@ -373,11 +373,8 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
 <div id="toast"></div>
 
 <script>
-// ════════════════════════════════════════
-// PASTE YOUR FIREBASE CONFIG HERE
-// Get it from: console.firebase.google.com
-// Project Settings → Your apps → Web app
-// ════════════════════════════════════════const firebaseConfig = {
+
+  const firebaseConfig = {
   apiKey:            "AIzaSyD4-P0FyCu-REsTK_5F9Txz4Xt4WQRDAuY",
   authDomain:        "messmate-4fa0c.firebaseapp.com",
   databaseURL:       "https://messmate-4fa0c-default-rtdb.firebaseio.com",
@@ -386,7 +383,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
   messagingSenderId: "504622248932",
   appId:             "1:504622248932:web:619cb4307d134842154df1"
 };
-// ════════════════════════════════════════
+
 
 // ── BOOTSTRAP ──
 const configured = !JSON.stringify(firebaseConfig).includes('PASTE_YOUR');

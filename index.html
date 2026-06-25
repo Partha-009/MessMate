@@ -4,23 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MessMate – Shared Meal Tracker</title>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://unpkg.com/firebase@8.10.1/firebase-app.js"></script>
+<script src="https://unpkg.com/firebase@8.10.1/firebase-auth.js"></script>
+<script src="https://unpkg.com/firebase@8.10.1/firebase-database.js"></script>
 <style>
 :root{--p:#6C63FF;--pl:#EAE8FF;--a:#43D9AD;--s:#FF6584;--a2:#FFB347;--bg:#F7F6FF;--card:#fff;--tx:#2D2A3E;--sub:#7B7898;--bd:#E2E0F0;--sh:0 4px 24px rgba(108,99,255,.1);--r:16px;--rs:8px;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;}
 
-/* ── SETUP ── */
-#setup-screen{display:none;min-height:100vh;background:linear-gradient(135deg,#6C63FF,#43D9AD);align-items:flex-start;justify-content:center;padding:2rem 1rem;overflow-y:auto;}
-.setup-card{background:#fff;border-radius:24px;padding:2rem;max-width:540px;width:100%;margin:auto;}
-.setup-card h2{color:var(--p);font-size:1.4rem;margin-bottom:.75rem;}
-.setup-card p{color:var(--sub);font-size:.88rem;line-height:1.7;margin-bottom:.75rem;}
-.setup-card ol{color:var(--sub);font-size:.88rem;line-height:2;padding-left:1.2rem;}
-.setup-card a{color:var(--p);font-weight:700;}
-.setup-card code{background:#F0EEFF;color:var(--p);padding:2px 7px;border-radius:5px;font-size:.83rem;font-family:monospace;word-break:break-all;}
-.setup-card .note{background:#FFF8E6;border-left:3px solid #FFB347;padding:.75rem 1rem;border-radius:0 8px 8px 0;margin-top:1rem;font-size:.83rem;color:#8a6500;}
+/* setup css removed */
 
 /* ── AUTH ── */
 #auth-screen{display:none;min-height:100vh;background:linear-gradient(135deg,#6C63FF,#43D9AD);align-items:center;justify-content:center;padding:1rem;}
@@ -169,25 +161,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
 </head>
 <body>
 
-<!-- ── SETUP SCREEN ── -->
-<div id="setup-screen">
-  <div class="setup-card">
-    <h2>⚙️ One-Time Firebase Setup Required</h2>
-    <p>MessMate needs a free Firebase database so all your roommates share the same data in real time. Follow these steps once and you're done forever!</p>
-    <ol>
-      <li>Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> and sign in with Google</li>
-      <li>Click <b>Add project</b> → name it <b>MessMate</b> → Continue → Create project</li>
-      <li>Click the <b>&lt;/&gt;</b> (Web) icon → name it <b>messmate</b> → click <b>Register app</b></li>
-      <li>You'll see a <code>firebaseConfig</code> block — copy all 7 values from it</li>
-      <li>Open this HTML file in a text editor → find the <code>firebaseConfig</code> section at the bottom → replace each <code>PASTE_YOUR_..._HERE</code> with your actual values</li>
-      <li>In Firebase Console → left menu → <b>Authentication</b> → Get started → Enable <b>Email/Password</b> → Save</li>
-      <li>In Firebase Console → left menu → <b>Realtime Database</b> → Create database → choose your region → Start in <b>test mode</b> → Enable</li>
-      <li>Go to Realtime Database → <b>Rules</b> tab → replace all content with:<br><code>{"rules":{".read":"auth != null",".write":"auth != null"}}</code> → Publish</li>
-      <li>Upload the updated file to GitHub and share your link! 🎉</li>
-    </ol>
-    <div class="note">⚠️ The databaseURL must look like: <code>https://your-project-default-rtdb.firebaseio.com</code> (or with a region like <code>.asia-southeast1.firebasedatabase.app</code>)</div>
-  </div>
-</div>
+<!-- setup screen removed -->
 
 <!-- ── AUTH SCREEN ── -->
 <div id="auth-screen">
@@ -373,11 +347,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
 <div id="toast"></div>
 
 <script>
-// ════════════════════════════════════════
-// PASTE YOUR FIREBASE CONFIG HERE
-// Get it from: console.firebase.google.com
-// Project Settings → Your apps → Web app
-// ════════════════════════════════════════
+// ── FIREBASE CONFIG ──
 const firebaseConfig = {
   apiKey:            "AIzaSyD4-P0FyCu-REsTK_5F9Txz4Xt4WQRDAuY",
   authDomain:        "messmate-4fa0c.firebaseapp.com",
@@ -387,20 +357,22 @@ const firebaseConfig = {
   messagingSenderId: "504622248932",
   appId:             "1:504622248932:web:619cb4307d134842154df1"
 };
-// ════════════════════════════════════════
 
 // ── BOOTSTRAP ──
-const configured = !JSON.stringify(firebaseConfig).includes('PASTE_YOUR');
-if (!configured) {
-  document.getElementById('setup-screen').style.display = 'flex';
-} else {
+window.addEventListener('load', function() {
+  if (typeof firebase === 'undefined') {
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#6C63FF,#43D9AD);"><div style="background:#fff;padding:2rem;border-radius:16px;max-width:400px;text-align:center;"><div style="font-size:3rem;">⚠️</div><h2 style="color:#6C63FF;margin:.5rem 0;">Connection Error</h2><p style="color:#7B7898;">Firebase failed to load. Please check your internet connection and refresh the page.</p><button onclick="location.reload()" style="margin-top:1rem;padding:.7rem 1.5rem;background:linear-gradient(90deg,#6C63FF,#43D9AD);border:none;border-radius:8px;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;">🔄 Retry</button></div></div>';
+    return;
+  }
   try {
     firebase.initializeApp(firebaseConfig);
-    bootApp();
   } catch(e) {
-    document.getElementById('setup-screen').style.display = 'flex';
+    if (!e.message.includes('already exists')) {
+      console.error(e); return;
+    }
   }
-}
+  bootApp();
+});
 
 // ── STATE ──
 let auth, db;

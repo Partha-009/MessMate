@@ -45,9 +45,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .page.active{display:block;}
 
 /* ── BOTTOM NAV ── */
-.bnav{background:#fff;border-top:1px solid var(--bd);display:flex;position:fixed;bottom:0;left:0;right:0;z-index:100;box-shadow:0 -2px 16px rgba(108,99,255,.08);}
-.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.5rem .2rem;border:none;background:none;cursor:pointer;color:var(--sub);font-size:.66rem;font-weight:600;gap:2px;transition:color .2s;}
-.nb .ni{font-size:1.3rem;}
+.bnav{background:#fff;border-top:1px solid var(--bd);display:flex;position:fixed;bottom:0;left:0;right:0;z-index:100;box-shadow:0 -2px 16px rgba(108,99,255,.08); overflow-x:auto;}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.5rem .2rem;border:none;background:none;cursor:pointer;color:var(--sub);font-size:.66rem;font-weight:600;gap:2px;transition:color .2s; min-width: 60px;}
+.nb .ni{font-size:1.2rem;}
 .nb.active{color:var(--p);}
 
 /* ── CARDS / LAYOUT ── */
@@ -205,6 +205,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
         <div>
           <div class="sec-title">🗓️ Meal Tracker</div>
           <div class="sec-sub">Only your row is clickable</div>
+          <div style="font-weight:900; color:var(--p); margin-top:6px; font-size:.85rem;">⚠️ You must take at least 40 meals in a month.</div>
         </div>
         <div class="mnav">
           <button class="mnb" onclick="shiftMonth('trk',-1)">◀</button>
@@ -344,12 +345,45 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       <div id="funds-container"></div>
     </div>
 
+    <div class="page" id="page-profile">
+      <div class="sec-hdr">
+        <div class="sec-title">👤 My Profile</div>
+      </div>
+      <div class="card" style="display:flex; flex-direction:column; align-items:center; text-align:center;">
+        <label style="cursor:pointer; position:relative; display:inline-block; margin-bottom:1rem;">
+          <div id="prof-pic-disp" style="width:80px; height:80px; border-radius:50%; background:var(--p); color:#fff; display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:bold; overflow:hidden; border:3px solid var(--pl);">
+          </div>
+          <div style="position:absolute; bottom:0; right:0; background:var(--s); color:#fff; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.8rem; border:2px solid #fff;">📷</div>
+          <input type="file" accept="image/*" style="display:none;" onchange="uploadProfilePic(this)">
+        </label>
+        <div style="font-size:1.1rem; font-weight:800;" id="prof-name-disp">...</div>
+        <div style="font-size:.85rem; color:var(--sub); margin-bottom:1.5rem;" id="prof-uname-disp">...</div>
+
+        <div style="width:100%; text-align:left; margin-bottom:1rem;">
+          <div class="fg">
+            <label>Change Username</label>
+            <input id="upd-uname" type="text" placeholder="New username (no spaces)"/>
+          </div>
+          <button class="btn-p" style="padding:.6rem;" onclick="updateUsername()">Update Username</button>
+        </div>
+        
+        <div style="width:100%; text-align:left; border-top:1px solid var(--bd); padding-top:1rem;">
+          <div class="fg">
+            <label>Reset Password</label>
+            <input id="upd-pass" type="password" placeholder="New password (min 6 chars)"/>
+          </div>
+          <button class="btn-p" style="padding:.6rem; background:var(--s);" onclick="updateUserPassword()">Reset Password</button>
+        </div>
+      </div>
+    </div>
+
   </div><nav class="bnav">
     <button class="nb active" onclick="goPage('tracker',this)"><span class="ni">🗓️</span>Tracker</button>
     <button class="nb" onclick="goPage('members',this)"><span class="ni">👥</span>Members</button>
     <button class="nb" onclick="goPage('costs',this)"><span class="ni">💸</span>Costs</button>
     <button class="nb" onclick="goPage('stats',this)"><span class="ni">📈</span>Stats</button>
     <button class="nb" onclick="goPage('funds',this)"><span class="ni">💰</span>Funds</button>
+    <button class="nb" onclick="goPage('profile',this)"><span class="ni">👤</span>Profile</button>
   </nav>
 </div><div class="mbg" id="mbg" onclick="if(event.target===this)closeModal()">
   <div class="modal">
@@ -455,6 +489,7 @@ function repaintActive() {
   else if(id==='page-costs')   renderCosts();
   else if(id==='page-stats')   renderStats();
   else if(id==='page-funds')   renderFunds();
+  else if(id==='page-profile') renderProfile();
 }
 
 // ── AUTH ──
@@ -512,6 +547,7 @@ function goPage(pg,btn){
   else if(pg==='costs')   renderCosts();
   else if(pg==='stats')   renderStats();
   else if(pg==='funds')   renderFunds();
+  else if(pg==='profile') renderProfile();
 }
 function shiftMonth(sec,dir){
   if(sec==='trk'){  trkOff+=dir;  setWeekToNow(); renderTracker(); }
@@ -556,12 +592,16 @@ function totalMeals(off){
 function toast(msg){
   const el=document.getElementById('toast');
   el.textContent=msg; el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'),2200);
+  setTimeout(()=>el.classList.remove('show'),2500);
 }
 function setWeekToNow(){
   if(trkOff!==0){weekIdx=0;return;}
   const day=new Date().getDate();
   weekIdx=Math.floor((day-1)/7);
+}
+function avtH(m, idx, size, fSize) {
+  if (m.photo) return `<img src="${m.photo}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid var(--pl);">`;
+  return `<div class="avt c${idx%20}" style="width:${size}px;height:${size}px;font-size:${fSize};flex-shrink:0;">${ini(m.name)}</div>`;
 }
 
 // ── TRACKER ──
@@ -572,7 +612,6 @@ function renderTracker(){
   if(weekIdx>=weeks.length) weekIdx=weeks.length-1;
   if(weekIdx<0) weekIdx=0;
 
-  // Week tabs
   let tabs='';
   weeks.forEach((w,i)=>{
     const lbl=`W${i+1}: ${w[0].getDate()}–${w[w.length-1].getDate()}`;
@@ -584,24 +623,21 @@ function renderTracker(){
   const mdata=mealMonth(trkOff);
   const mbs=membersArr();
 
-  // Head
   let head='<tr><th>Member</th>';
   week.forEach(d=>{ head+=`<th colspan="2">${dn(d)}<br><span style="font-size:.66rem;opacity:.8;">${d.getDate()}</span></th>`; });
   head+='<th>Month<br>Total</th></tr>';
   document.getElementById('mt-head').innerHTML=head;
 
-  // Sub-header
   let sub='<tr class="sub-hdr"><td></td>';
   week.forEach(()=>{ sub+='<td>🌅</td><td>🌙</td>'; });
   sub+='<td></td></tr>';
 
-  // Rows
   let body=sub;
   mbs.forEach((m,idx)=>{
     const isMe=m.id===uid;
     const mm=mdata[m.id]||{};
     let row=`<td><span style="display:flex;align-items:center;gap:4px;">
-      <span class="avt c${idx%20}" style="width:22px;height:22px;font-size:.58rem;">${ini(m.name)}</span>
+      ${avtH(m, idx, 22, '.58rem')}
       ${m.name}${isMe?'<span class="you-tag">You</span>':''}
     </span></td>`;
     
@@ -668,7 +704,7 @@ function renderMonthlyTotals(){
     Object.values(mm).forEach(x=>{if(x==='tick')cnt++;});
     const pct=Math.min(100,Math.round(cnt/62*100));
     html+=`<div style="display:flex;align-items:center;gap:.55rem;margin-bottom:.5rem;">
-      <div class="avt c${idx%20}" style="width:30px;height:30px;font-size:.65rem;flex-shrink:0;">${ini(m.name)}</div>
+      ${avtH(m, idx, 30, '.65rem')}
       <span style="font-size:.8rem;font-weight:700;min-width:75px;">${m.name}</span>
       <div style="flex:1;"><div class="pb-wrap"><div class="pb-fill" style="width:${pct}%"></div></div></div>
       <span class="bdg">${cnt} meals</span>
@@ -680,6 +716,7 @@ function renderMonthlyTotals(){
 // ── MEMBERS ──
 function renderMembers(){
   const mbs=membersArr();
+  const isAdmin = (uName && uName.toLowerCase().includes('partha'));
   document.getElementById('mem-count').textContent=`${mbs.length} / 20 members`;
   if(!mbs.length){
     document.getElementById('mem-grid').innerHTML='<div style="text-align:center;color:var(--sub);padding:2rem;">No members yet — register to join! 🎉</div>';
@@ -692,8 +729,8 @@ function renderMembers(){
     const mm=mdata[m.id]||{}; let cnt=0;
     Object.values(mm).forEach(x=>{if(x==='tick')cnt++;});
     html+=`<div class="mcard">
-      ${!isMe?`<button class="btn-del-m" onclick="delMember('${m.id}')">✕</button>`:''}
-      <div class="avt c${idx%20}" style="width:46px;height:46px;font-size:1.1rem;">${ini(m.name)}</div>
+      ${(isAdmin && !isMe) ? `<button class="btn-del-m" onclick="delMember('${m.id}')">✕</button>`:''}
+      ${avtH(m, idx, 46, '1.1rem')}
       <div class="mname">${m.name}</div>
       ${isMe?'<span class="you-tag">You</span>':''}
       <div class="msub">${cnt} meals this month</div>
@@ -846,7 +883,7 @@ function renderStats(){
     Object.values(mm).forEach(x=>{if(x==='tick')cnt++;});
     const pct=totMeals>0?Math.round(cnt/totMeals*100):0;
     pmH+=`<div style="display:flex;align-items:center;gap:.55rem;margin-bottom:.55rem;">
-      <div class="avt c${idx%20}" style="width:30px;height:30px;font-size:.65rem;flex-shrink:0;">${ini(m.name)}</div>
+      ${avtH(m, idx, 30, '.65rem')}
       <div style="flex:1;">
         <div style="font-size:.8rem;font-weight:700;">${m.name}${m.id===uid?' (You)':''}</div>
         <div class="pb-wrap"><div class="pb-fill" style="width:${pct}%"></div></div>
@@ -926,7 +963,9 @@ function checkPaymentAlert() {
   
   if (rounds.length > 0) {
     const latestRound = rounds[rounds.length - 1];
-    const myPayment = fData[latestRound][uid] || 0;
+    const myPaymentData = fData[latestRound][uid];
+    const myPayment = (typeof myPaymentData === 'object' && myPaymentData !== null) ? (myPaymentData.amount || 0) : (myPaymentData || 0);
+
     if (myPayment === 0) {
       document.getElementById('alert-nth').textContent = getOrdinal(rounds.length);
       alertEl.style.display = 'block';
@@ -959,10 +998,20 @@ function renderFunds() {
       html += `<div class="tbl-wrap"><table class="mt"><tr><th style="text-align:left;">Member</th><th>Paid (৳)</th>${isAdmin?'<th>Action</th>':''}</tr>`;
       
       membersArr().forEach((m, idx) => {
-        const paid = roundData[m.id] || 0;
+        const fundObj = roundData[m.id];
+        let paid = 0; let dateStr = '';
+        if (typeof fundObj === 'object' && fundObj !== null) {
+          paid = fundObj.amount || 0;
+          dateStr = fundObj.date || '';
+        } else {
+          paid = fundObj || 0;
+        }
+
         html += `<tr>
-          <td><span style="display:flex;align-items:center;gap:4px;"><span class="avt c${idx%20}" style="width:22px;height:22px;font-size:.58rem;">${ini(m.name)}</span>${m.name}</span></td>
-          <td style="font-weight:700; color:${paid>0?'#1a9e72':'var(--s)'};">${paid>0?'৳'+paid:'Unpaid'}</td>
+          <td><span style="display:flex;align-items:center;gap:4px;">${avtH(m, idx, 22, '.58rem')}${m.name}</span></td>
+          <td style="font-weight:700; color:${paid>0?'#1a9e72':'var(--s)'};">
+            ${paid>0 ? `৳${paid} <div style="font-size:0.65rem; color:var(--sub); font-weight:normal;">${dateStr}</div>` : 'Unpaid'}
+          </td>
           ${isAdmin?`<td><div style="display:flex;gap:4px;justify-content:center;"><input type="number" id="fund_${rnd}_${m.id}" placeholder="Amt" style="width:60px; padding:4px; border:1px solid var(--bd); border-radius:4px; outline:none;" value="${paid>0?paid:''}"><button onclick="saveFund('${monthKey}', '${rnd}', '${m.id}')" style="padding:4px 8px; background:var(--p); color:#fff; border:none; border-radius:4px; cursor:pointer;">Save</button></div></td>`:''}
         </tr>`;
       });
@@ -982,7 +1031,85 @@ function createNewFundRound() {
 
 function saveFund(monthKey, round, memId) {
   const amt = document.getElementById(`fund_${round}_${memId}`).value;
-  db.ref(`funds/${monthKey}/${round}/${memId}`).set(Number(amt) || 0).then(() => toast('Saved!'));
+  const numAmt = Number(amt);
+  if (numAmt > 0) {
+    const now = new Date();
+    const dateStr = now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    db.ref(`funds/${monthKey}/${round}/${memId}`).set({ amount: numAmt, date: dateStr }).then(() => toast('Saved!'));
+  } else {
+    db.ref(`funds/${monthKey}/${round}/${memId}`).set(0).then(() => toast('Saved!'));
+  }
+}
+
+// ── PROFILE ──
+function renderProfile() {
+  if (!uid) return;
+  const myData = membersCache[uid] || {};
+  const initials = ini(myData.name || 'User');
+  const picDisp = document.getElementById('prof-pic-disp');
+  
+  if (myData.photo) {
+    picDisp.innerHTML = `<img src="${myData.photo}" style="width:100%; height:100%; object-fit:cover;">`;
+  } else {
+    picDisp.innerHTML = initials;
+  }
+  
+  document.getElementById('prof-name-disp').textContent = myData.name || 'User';
+  document.getElementById('prof-uname-disp').textContent = '@' + (myData.username || 'unknown');
+}
+
+function uploadProfilePic(inp) {
+  const file = inp.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      const MAX = 200; let w = img.width, h = img.height;
+      if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } } 
+      else { if (h > MAX) { w *= MAX / h; h = MAX; } }
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      const b64 = c.toDataURL('image/jpeg', 0.7);
+      db.ref(`members/${uid}/photo`).set(b64).then(() => {
+        toast('Profile picture updated! 📸');
+        renderProfile();
+      });
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateUsername() {
+  const newU = document.getElementById('upd-uname').value.trim().toLowerCase().replace(/\s/g, '');
+  if (!newU) { toast('Enter new username'); return; }
+  const user = auth.currentUser;
+  if (user) {
+    user.updateEmail(newU + '@messmate.local').then(() => {
+      return db.ref(`members/${uid}/username`).set(newU);
+    }).then(() => {
+      toast('Username updated! ✨');
+      document.getElementById('upd-uname').value = '';
+      renderProfile();
+    }).catch(e => {
+      toast(e.message || 'Failed to update username. Try re-logging.');
+    });
+  }
+}
+
+function updateUserPassword() {
+  const newP = document.getElementById('upd-pass').value;
+  if (newP.length < 6) { toast('Password must be 6+ chars'); return; }
+  const user = auth.currentUser;
+  if (user) {
+    user.updatePassword(newP).then(() => {
+      toast('Password reset successfully! 🔒');
+      document.getElementById('upd-pass').value = '';
+    }).catch(e => {
+      toast(e.message || 'Failed to reset. Re-login required.');
+    });
+  }
 }
 
 // ── MODAL ──
@@ -992,6 +1119,30 @@ function openModal(title,body){
   document.getElementById('mbg').classList.add('open');
 }
 function closeModal(){document.getElementById('mbg').classList.remove('open');}
+
+// ── DETERRENT SCRIPT ──
+// Disable right-click menu
+document.addEventListener('contextmenu', event => event.preventDefault());
+
+// Disable common developer tool shortcuts
+document.onkeydown = function(e) {
+  // Disable F12
+  if (e.keyCode === 123) {
+    return false;
+  }
+  // Disable Ctrl+Shift+I (Inspect)
+  if (e.ctrlKey && e.shiftKey && e.keyCode === 73) {
+    return false;
+  }
+  // Disable Ctrl+Shift+J (Console)
+  if (e.ctrlKey && e.shiftKey && e.keyCode === 74) {
+    return false;
+  }
+  // Disable Ctrl+U (View Source)
+  if (e.ctrlKey && e.keyCode === 85) {
+    return false;
+  }
+};
 </script>
 </body>
 </html>

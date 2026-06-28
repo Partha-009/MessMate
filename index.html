@@ -12,8 +12,6 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;}
 
-/* setup css removed */
-
 /* ── AUTH ── */
 #auth-screen{display:none;min-height:100vh;background:linear-gradient(135deg,#6C63FF,#43D9AD);align-items:center;justify-content:center;padding:1rem;}
 .auth-card{background:#fff;border-radius:24px;padding:2.5rem 2rem;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,.18);}
@@ -34,10 +32,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
 /* ── APP ── */
 #app-screen{display:none;flex-direction:column;min-height:100vh;}
-.topbar{background:linear-gradient(90deg,#6C63FF,#5a54d4);color:#fff;padding:0 1.25rem;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
-.topbar-logo{font-size:1.25rem;font-weight:800;}
+.topbar{background:linear-gradient(90deg,#6C63FF,#5a54d4);color:#fff;padding:0 1.25rem;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.topbar-logo{font-size:1.25rem;font-weight:800;cursor:pointer;}
 .topbar-logo span{color:#43D9AD;}
-.tb-right{display:flex;align-items:center;gap:.65rem;}
+.tb-right{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;}
 .tb-user{font-size:.78rem;opacity:.85;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .btn-out{background:rgba(255,255,255,.2);border:none;color:#fff;padding:.28rem .75rem;border-radius:20px;cursor:pointer;font-size:.8rem;}
 .btn-out:hover{background:rgba(255,255,255,.35);}
@@ -161,9 +159,6 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
 </head>
 <body>
 
-<!-- setup screen removed -->
-
-<!-- ── AUTH SCREEN ── -->
 <div id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">
@@ -191,19 +186,20 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
   </div>
 </div>
 
-<!-- ── APP SCREEN ── -->
 <div id="app-screen">
   <div class="topbar">
-    <div class="topbar-logo">Mess<span>Mate</span> 🍽️</div>
+    <div class="topbar-logo" onclick="goPage('tracker', document.querySelectorAll('.nb')[0])" style="cursor:pointer;">Mess<span>Mate</span> 🍽️</div>
     <div class="tb-right">
-      <span class="tb-user" id="tb-user"></span>
-      <button class="btn-out" onclick="doLogout()">Logout</button>
+      <div style="display:flex; align-items:center; gap:.65rem;">
+        <span class="tb-user" id="tb-user"></span>
+        <button class="btn-out" onclick="doLogout()">Logout</button>
+      </div>
+      <div style="font-size:.65rem; opacity:.9; margin-top:3px; font-weight: 600;">Developed by Partha Chakraborty</div>
     </div>
   </div>
 
   <div class="content">
 
-    <!-- TRACKER PAGE -->
     <div class="page active" id="page-tracker">
       <div class="sec-hdr">
         <div>
@@ -216,6 +212,17 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
           <button class="mnb" onclick="shiftMonth('trk',1)">▶</button>
         </div>
       </div>
+      
+      <div id="payment-alert" style="display:none; background:#FFF0F3; color:#d63060; padding:.8rem; border-radius:12px; margin-bottom:.9rem; font-weight:700; font-size:.85rem; border:1px solid #FF6584;">
+        ⚠️ You have not given the money for the <span id="alert-nth"></span> time yet.
+      </div>
+
+      <div class="card" style="background:linear-gradient(135deg,#6C63FF,#43D9AD); color:#fff; text-align:center; padding:1.2rem;">
+        <div style="font-size:.85rem; font-weight:700; opacity:.9; text-transform:uppercase;">Time remaining for <span id="next-meal-name">Next Meal</span> Vote</div>
+        <div id="vote-timer" style="font-size:2.2rem; font-weight:800; margin:.5rem 0; font-variant-numeric: tabular-nums;">00:00:00</div>
+        <div style="font-size:.9rem; font-weight:600;"><span id="next-meal-count" style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:12px;">0</span> members have voted Yes</div>
+      </div>
+
       <div class="wtabs" id="week-tabs"></div>
       <div class="card" style="padding:.7rem;">
         <div class="tbl-wrap">
@@ -231,7 +238,6 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
     </div>
 
-    <!-- MEMBERS PAGE -->
     <div class="page" id="page-members">
       <div class="sec-hdr">
         <div>
@@ -247,7 +253,6 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       <div style="margin-top:.9rem;" id="mem-grid"></div>
     </div>
 
-    <!-- COSTS PAGE -->
     <div class="page" id="page-costs">
       <div class="sec-hdr">
         <div class="sec-title">💸 Food Costs</div>
@@ -304,7 +309,6 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
     </div>
 
-    <!-- STATS PAGE -->
     <div class="page" id="page-stats">
       <div class="sec-hdr">
         <div class="sec-title">📈 Statistics</div>
@@ -325,18 +329,29 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
     </div>
 
-  </div><!-- /content -->
+    <div class="page" id="page-funds">
+      <div class="sec-hdr">
+        <div class="sec-title">💰 Fund Collection</div>
+        <div class="mnav">
+          <button class="mnb" onclick="shiftMonth('fund',-1)">◀</button>
+          <span class="mlbl" id="fund-mlbl"></span>
+          <button class="mnb" onclick="shiftMonth('fund',1)">▶</button>
+        </div>
+      </div>
+      <div id="admin-fund-ctrl" style="display:none; margin-bottom:.9rem;">
+        <button class="btn-p" onclick="createNewFundRound()">+ Start New Collection Round</button>
+      </div>
+      <div id="funds-container"></div>
+    </div>
 
-  <nav class="bnav">
+  </div><nav class="bnav">
     <button class="nb active" onclick="goPage('tracker',this)"><span class="ni">🗓️</span>Tracker</button>
     <button class="nb" onclick="goPage('members',this)"><span class="ni">👥</span>Members</button>
     <button class="nb" onclick="goPage('costs',this)"><span class="ni">💸</span>Costs</button>
     <button class="nb" onclick="goPage('stats',this)"><span class="ni">📈</span>Stats</button>
+    <button class="nb" onclick="goPage('funds',this)"><span class="ni">💰</span>Funds</button>
   </nav>
-</div><!-- /app-screen -->
-
-<!-- MODAL -->
-<div class="mbg" id="mbg" onclick="if(event.target===this)closeModal()">
+</div><div class="mbg" id="mbg" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <button class="mcls" onclick="closeModal()">✕</button>
     <h3 id="m-title"></h3>
@@ -377,9 +392,10 @@ window.addEventListener('load', function() {
 // ── STATE ──
 let auth, db;
 let uid = null, uName = null;
-let trkOff = 0, costOff = 0, statsOff = 0, weekIdx = 0;
-let membersCache = {}, mealsCache = {}, costsCache = {};
+let trkOff = 0, costOff = 0, statsOff = 0, fundOff = 0, weekIdx = 0;
+let membersCache = {}, mealsCache = {}, costsCache = {}, fundsCache = {};
 let recB64 = null, recName = '';
+let timerInterval;
 
 const CATS = [
   {k:'Chicken',i:'🍗'},{k:'Fish',i:'🐟'},{k:'Vegetables',i:'🥦'},
@@ -415,16 +431,20 @@ function bootApp() {
 }
 
 // ── LISTENERS ──
-let lMembers, lMeals, lCosts;
+let lMembers, lMeals, lCosts, lFunds;
 function attachAll() {
   lMembers = db.ref('members').on('value', s => { membersCache = s.val()||{}; repaintActive(); });
-  lMeals   = db.ref('meals'  ).on('value', s => { mealsCache   = s.val()||{}; repaintActive(); });
+  lMeals   = db.ref('meals'  ).on('value', s => { mealsCache   = s.val()||{}; repaintActive(); updateTimer(); });
   lCosts   = db.ref('costs'  ).on('value', s => { costsCache   = s.val()||{}; repaintActive(); });
+  lFunds   = db.ref('funds'  ).on('value', s => { fundsCache   = s.val()||{}; repaintActive(); checkPaymentAlert(); });
+  startTimer();
 }
 function detachAll() {
   if(lMembers) db.ref('members').off('value',lMembers);
   if(lMeals)   db.ref('meals')  .off('value',lMeals);
   if(lCosts)   db.ref('costs')  .off('value',lCosts);
+  if(lFunds)   db.ref('funds')  .off('value',lFunds);
+  if(timerInterval) clearInterval(timerInterval);
 }
 function repaintActive() {
   const pg = document.querySelector('.page.active');
@@ -434,6 +454,7 @@ function repaintActive() {
   else if(id==='page-members') renderMembers();
   else if(id==='page-costs')   renderCosts();
   else if(id==='page-stats')   renderStats();
+  else if(id==='page-funds')   renderFunds();
 }
 
 // ── AUTH ──
@@ -463,10 +484,8 @@ function doRegister() {
   if(p.length<6){err.textContent='Password: min 6 characters';return;}
   if(!/^[a-z0-9_]+$/.test(u)){err.textContent='Username: letters, numbers, _ only';return;}
   err.textContent='⏳ Creating account…';
-  // Step 1: Create auth user first (no DB needed)
   auth.createUserWithEmailAndPassword(u+'@messmate.local', p)
     .then(cred => {
-      // Step 2: Now authenticated — safely read & write DB
       return db.ref('members').once('value').then(snap => {
         if(snap.numChildren() >= 20) {
           return cred.user.delete().then(() => { throw new Error('Mess is full (20 members max)'); });
@@ -492,11 +511,13 @@ function goPage(pg,btn){
   else if(pg==='members') renderMembers();
   else if(pg==='costs')   renderCosts();
   else if(pg==='stats')   renderStats();
+  else if(pg==='funds')   renderFunds();
 }
 function shiftMonth(sec,dir){
   if(sec==='trk'){  trkOff+=dir;  setWeekToNow(); renderTracker(); }
   else if(sec==='cost'){  costOff+=dir;   renderCosts();   }
   else if(sec==='stats'){ statsOff+=dir;  renderStats();  }
+  else if(sec==='fund'){  fundOff+=dir;   renderFunds();  }
 }
 
 // ── HELPERS ──
@@ -583,15 +604,29 @@ function renderTracker(){
       <span class="avt c${idx%20}" style="width:22px;height:22px;font-size:.58rem;">${ini(m.name)}</span>
       ${m.name}${isMe?'<span class="you-tag">You</span>':''}
     </span></td>`;
+    
     week.forEach(d=>{
       const dk=fmtDate(d);
-      const b=mm[dk+'_b']||'', l=mm[dk+'_l']||'';
+      let b=mm[dk+'_b']||'', l=mm[dk+'_l']||'';
       const cls=isMe?'mine':'others';
+      
+      const now = new Date();
+      const isToday = now.toDateString() === d.toDateString();
+      const isPast = d < new Date(new Date().setHours(0,0,0,0));
+      
+      if (b === '') {
+        if (isPast || (isToday && now.getHours() >= 13)) b = 'cross';
+      }
+      if (l === '') {
+        if (isPast || (isToday && (now.getHours() > 18 || (now.getHours() === 18 && now.getMinutes() >= 30)))) l = 'cross';
+      }
+
       const ob=isMe?`onclick="tog('${m.id}','${dk}','b')"`:'' ;
       const ol=isMe?`onclick="tog('${m.id}','${dk}','l')"`:'' ;
       row+=`<td><span class="mc ${b==='tick'?'tick':b==='cross'?'cross':'empty'} ${cls}" ${ob}>${b==='tick'?'✓':b==='cross'?'✗':'·'}</span></td>`;
       row+=`<td><span class="mc ${l==='tick'?'tick':l==='cross'?'cross':'empty'} ${cls}" ${ol}>${l==='tick'?'✓':l==='cross'?'✗':'·'}</span></td>`;
     });
+    
     let tot=0; Object.values(mm).forEach(x=>{if(x==='tick')tot++;});
     row+=`<td><span class="bdg">${tot}</span></td>`;
     body+=`<tr>${row}</tr>`;
@@ -600,15 +635,31 @@ function renderTracker(){
   document.getElementById('mt-body').innerHTML=body;
   renderMonthlyTotals();
 }
+
 function setWeek(i){weekIdx=i;renderTracker();}
-function tog(memId,dk,slot){
-  if(memId!==uid) return;
-  const ref=db.ref(`meals/${mk(trkOff)}/${memId}/${dk}_${slot}`);
-  ref.once('value',s=>{
-    const cur=s.val()||'';
-    ref.set(cur===''?'tick':cur==='tick'?'cross':'');
+
+function tog(memId, dk, slot) {
+  if (memId !== uid) return;
+  
+  const now = new Date();
+  const [y, m, d] = dk.split('-');
+  const mealDate = new Date(y, m - 1, d);
+  const isToday = now.toDateString() === mealDate.toDateString();
+  
+  if (isToday) {
+    if (slot === 'b' && now.getHours() >= 13) { toast('Lunch voting closed at 1:00 PM'); return; }
+    if (slot === 'l' && (now.getHours() > 18 || (now.getHours() === 18 && now.getMinutes() >= 30))) { toast('Dinner voting closed at 6:30 PM'); return; }
+  } else if (mealDate < new Date(now.setHours(0,0,0,0))) {
+    toast('Cannot vote for past days'); return;
+  }
+
+  const ref = db.ref(`meals/${mk(trkOff)}/${memId}/${dk}_${slot}`);
+  ref.once('value', s => {
+    const cur = s.val() || '';
+    ref.set(cur === '' ? 'tick' : cur === 'tick' ? 'cross' : '');
   });
 }
+
 function renderMonthlyTotals(){
   const mdata=mealMonth(trkOff), mbs=membersArr();
   let html='';
@@ -720,7 +771,6 @@ function renderCosts(){
   document.getElementById('cost-per-meal').textContent=meals>0?'৳'+perMeal.toFixed(2):'—';
   document.getElementById('cost-total-meals').textContent=meals+' meals';
 
-  // Category cards
   let catH='';
   CATS.forEach(cat=>{
     const t=entries.filter(([,c])=>c.category===cat.k).reduce((s,[,c])=>s+c.amount,0);
@@ -730,7 +780,6 @@ function renderCosts(){
   });
   document.getElementById('cost-cats').innerHTML=catH;
 
-  // Expense list (latest 20)
   const sorted=[...entries].sort((a,b)=>b[1].date.localeCompare(a[1].date)).slice(0,20);
   let listH='';
   sorted.forEach(([id,c])=>{
@@ -791,7 +840,6 @@ function renderStats(){
     <div class="sc"><div class="sv">৳${perMeal.toFixed(1)}</div><div class="sl">Per-Meal Cost</div></div>
   `;
 
-  // Per member
   let pmH='';
   mbs.forEach((m,idx)=>{
     const mm=mdata[m.id]||{}; let cnt=0;
@@ -808,7 +856,6 @@ function renderStats(){
   });
   document.getElementById('stats-members').innerHTML=pmH||'<div style="color:var(--sub);">No data.</div>';
 
-  // Category spend
   const totCat=totSpend||1;
   let catH='';
   CATS.forEach(cat=>{
@@ -824,6 +871,118 @@ function renderStats(){
     </div>`;
   });
   document.getElementById('stats-cats').innerHTML=catH||'<div style="color:var(--sub);">No expenses yet.</div>';
+}
+
+// ── TIMER & FUNDS ──
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(updateTimer, 1000);
+  updateTimer();
+}
+
+function updateTimer() {
+  const now = new Date();
+  const lunchTarget = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 13, 0, 0);
+  const dinnerTarget = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 30, 0);
+  
+  let target, mealName, slotId;
+  if (now < lunchTarget) {
+    target = lunchTarget; mealName = 'Lunch'; slotId = 'b';
+  } else if (now < dinnerTarget) {
+    target = dinnerTarget; mealName = 'Dinner'; slotId = 'l';
+  } else {
+    target = new Date(lunchTarget); target.setDate(target.getDate() + 1);
+    mealName = 'Tomorrow Lunch'; slotId = 'b';
+  }
+
+  const diff = target - now;
+  const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const s = Math.floor((diff % (1000 * 60)) / 1000);
+  
+  const el = document.getElementById('vote-timer');
+  if(el) el.textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
+  const nm = document.getElementById('next-meal-name');
+  if(nm) nm.textContent = mealName;
+
+  const tDate = fmtDate(target);
+  const mdata = mealsCache[tDate.slice(0,7)] || {};
+  let count = 0;
+  Object.values(mdata).forEach(mem => { if (mem[`${tDate}_${slotId}`] === 'tick') count++; });
+  const nmc = document.getElementById('next-meal-count');
+  if(nmc) nmc.textContent = count;
+}
+
+function getOrdinal(n) {
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function checkPaymentAlert() {
+  if (!uid) return;
+  const fData = fundsCache[mk(0)] || {};
+  const rounds = Object.keys(fData).filter(k => k.startsWith('round_')).sort();
+  const alertEl = document.getElementById('payment-alert');
+  
+  if (rounds.length > 0) {
+    const latestRound = rounds[rounds.length - 1];
+    const myPayment = fData[latestRound][uid] || 0;
+    if (myPayment === 0) {
+      document.getElementById('alert-nth').textContent = getOrdinal(rounds.length);
+      alertEl.style.display = 'block';
+    } else {
+      alertEl.style.display = 'none';
+    }
+  } else {
+    alertEl.style.display = 'none';
+  }
+}
+
+function renderFunds() {
+  if(!uid) return;
+  document.getElementById('fund-mlbl').textContent = mlbl(fundOff);
+  const monthKey = mk(fundOff);
+  
+  const isAdmin = (uName && uName.toLowerCase().includes('partha'));
+  document.getElementById('admin-fund-ctrl').style.display = isAdmin ? 'block' : 'none';
+  
+  const fData = fundsCache[monthKey] || {};
+  const rounds = Object.keys(fData).filter(k => k.startsWith('round_')).sort();
+  
+  let html = '';
+  if (rounds.length === 0) {
+    html = '<div style="text-align:center;color:var(--sub);padding:2rem;">No funds collected this month.</div>';
+  } else {
+    rounds.forEach((rnd, i) => {
+      const roundData = fData[rnd] || {};
+      html += `<div class="card"><div class="sec-hdr"><div class="sec-title">${getOrdinal(i+1)} Collection</div></div>`;
+      html += `<div class="tbl-wrap"><table class="mt"><tr><th style="text-align:left;">Member</th><th>Paid (৳)</th>${isAdmin?'<th>Action</th>':''}</tr>`;
+      
+      membersArr().forEach((m, idx) => {
+        const paid = roundData[m.id] || 0;
+        html += `<tr>
+          <td><span style="display:flex;align-items:center;gap:4px;"><span class="avt c${idx%20}" style="width:22px;height:22px;font-size:.58rem;">${ini(m.name)}</span>${m.name}</span></td>
+          <td style="font-weight:700; color:${paid>0?'#1a9e72':'var(--s)'};">${paid>0?'৳'+paid:'Unpaid'}</td>
+          ${isAdmin?`<td><div style="display:flex;gap:4px;justify-content:center;"><input type="number" id="fund_${rnd}_${m.id}" placeholder="Amt" style="width:60px; padding:4px; border:1px solid var(--bd); border-radius:4px; outline:none;" value="${paid>0?paid:''}"><button onclick="saveFund('${monthKey}', '${rnd}', '${m.id}')" style="padding:4px 8px; background:var(--p); color:#fff; border:none; border-radius:4px; cursor:pointer;">Save</button></div></td>`:''}
+        </tr>`;
+      });
+      html += `</table></div></div>`;
+    });
+  }
+  document.getElementById('funds-container').innerHTML = html;
+}
+
+function createNewFundRound() {
+  const monthKey = mk(fundOff);
+  const fData = fundsCache[monthKey] || {};
+  const rounds = Object.keys(fData).filter(k => k.startsWith('round_'));
+  const newRound = 'round_' + (rounds.length + 1);
+  db.ref(`funds/${monthKey}/${newRound}/_created`).set(true).then(() => toast('New round started! 💰'));
+}
+
+function saveFund(monthKey, round, memId) {
+  const amt = document.getElementById(`fund_${round}_${memId}`).value;
+  db.ref(`funds/${monthKey}/${round}/${memId}`).set(Number(amt) || 0).then(() => toast('Saved!'));
 }
 
 // ── MODAL ──

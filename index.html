@@ -159,6 +159,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
 </head>
 <body>
 
+<!-- ── AUTH SCREEN ── -->
 <div id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">
@@ -186,6 +187,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
   </div>
 </div>
 
+<!-- ── APP SCREEN ── -->
 <div id="app-screen">
   <div class="topbar">
     <div class="topbar-logo" onclick="goPage('tracker', document.querySelectorAll('.nb')[0])" style="cursor:pointer;">Mess<span>Mate</span> 🍽️</div>
@@ -200,6 +202,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
 
   <div class="content">
 
+    <!-- TRACKER PAGE -->
     <div class="page active" id="page-tracker">
       <div class="sec-hdr">
         <div>
@@ -239,6 +242,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
     </div>
 
+    <!-- MEMBERS PAGE -->
     <div class="page" id="page-members">
       <div class="sec-hdr">
         <div>
@@ -254,6 +258,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       <div style="margin-top:.9rem;" id="mem-grid"></div>
     </div>
 
+    <!-- COSTS PAGE -->
     <div class="page" id="page-costs">
       <div class="sec-hdr">
         <div class="sec-title">💸 Food Costs</div>
@@ -310,6 +315,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
     </div>
 
+    <!-- STATS PAGE -->
     <div class="page" id="page-stats">
       <div class="sec-hdr">
         <div class="sec-title">📈 Statistics</div>
@@ -330,6 +336,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
     </div>
 
+    <!-- FUNDS PAGE -->
     <div class="page" id="page-funds">
       <div class="sec-hdr">
         <div class="sec-title">💰 Fund Collection</div>
@@ -345,6 +352,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       <div id="funds-container"></div>
     </div>
 
+    <!-- PROFILE PAGE -->
     <div class="page" id="page-profile">
       <div class="sec-hdr">
         <div class="sec-title">👤 My Profile</div>
@@ -377,7 +385,9 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
     </div>
 
-  </div><nav class="bnav">
+  </div><!-- /content -->
+
+  <nav class="bnav">
     <button class="nb active" onclick="goPage('tracker',this)"><span class="ni">🗓️</span>Tracker</button>
     <button class="nb" onclick="goPage('members',this)"><span class="ni">👥</span>Members</button>
     <button class="nb" onclick="goPage('costs',this)"><span class="ni">💸</span>Costs</button>
@@ -385,7 +395,10 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
     <button class="nb" onclick="goPage('funds',this)"><span class="ni">💰</span>Funds</button>
     <button class="nb" onclick="goPage('profile',this)"><span class="ni">👤</span>Profile</button>
   </nav>
-</div><div class="mbg" id="mbg" onclick="if(event.target===this)closeModal()">
+</div><!-- /app-screen -->
+
+<!-- MODAL -->
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <button class="mcls" onclick="closeModal()">✕</button>
     <h3 id="m-title"></h3>
@@ -623,6 +636,10 @@ function renderTracker(){
   const mdata=mealMonth(trkOff);
   const mbs=membersArr();
 
+  // Get current funds data to display unpaid warnings in tracker slot
+  const fData = fundsCache[mk(trkOff)] || {};
+  const fundRounds = Object.keys(fData).filter(k => k.startsWith('round_')).sort();
+
   let head='<tr><th>Member</th>';
   week.forEach(d=>{ head+=`<th colspan="2">${dn(d)}<br><span style="font-size:.66rem;opacity:.8;">${d.getDate()}</span></th>`; });
   head+='<th>Month<br>Total</th></tr>';
@@ -636,10 +653,25 @@ function renderTracker(){
   mbs.forEach((m,idx)=>{
     const isMe=m.id===uid;
     const mm=mdata[m.id]||{};
-    let row=`<td><span style="display:flex;align-items:center;gap:4px;">
-      ${avtH(m, idx, 22, '.58rem')}
-      ${m.name}${isMe?'<span class="you-tag">You</span>':''}
-    </span></td>`;
+    
+    // Check pending payments for this member
+    let unpaid = [];
+    fundRounds.forEach((rnd, i) => {
+      const pData = fData[rnd][m.id];
+      const p = (typeof pData === 'object' && pData !== null) ? (pData.amount || 0) : (pData || 0);
+      if(p === 0) unpaid.push(getOrdinal(i+1));
+    });
+    let unpaidHtml = unpaid.length > 0 ? `<div style="font-size:0.65rem; color:var(--s); font-weight:600; line-height:1.2; margin-top:2px;">Pending: ${unpaid.join(', ')}</div>` : '';
+
+    let row=`<td>
+      <div style="display:flex;align-items:center;gap:6px;">
+        ${avtH(m, idx, 26, '.65rem')}
+        <div style="display:flex;flex-direction:column;justify-content:center;text-align:left;">
+          <div>${m.name}${isMe?'<span class="you-tag">You</span>':''}</div>
+          ${unpaidHtml}
+        </div>
+      </div>
+    </td>`;
     
     week.forEach(d=>{
       const dk=fmtDate(d);
@@ -961,17 +993,16 @@ function checkPaymentAlert() {
   const rounds = Object.keys(fData).filter(k => k.startsWith('round_')).sort();
   const alertEl = document.getElementById('payment-alert');
   
-  if (rounds.length > 0) {
-    const latestRound = rounds[rounds.length - 1];
-    const myPaymentData = fData[latestRound][uid];
+  let unpaid = [];
+  rounds.forEach((rnd, i) => {
+    const myPaymentData = fData[rnd][uid];
     const myPayment = (typeof myPaymentData === 'object' && myPaymentData !== null) ? (myPaymentData.amount || 0) : (myPaymentData || 0);
+    if (myPayment === 0) unpaid.push(getOrdinal(i+1));
+  });
 
-    if (myPayment === 0) {
-      document.getElementById('alert-nth').textContent = getOrdinal(rounds.length);
-      alertEl.style.display = 'block';
-    } else {
-      alertEl.style.display = 'none';
-    }
+  if (unpaid.length > 0) {
+    document.getElementById('alert-nth').textContent = unpaid.join(', ');
+    alertEl.style.display = 'block';
   } else {
     alertEl.style.display = 'none';
   }
@@ -994,7 +1025,11 @@ function renderFunds() {
   } else {
     rounds.forEach((rnd, i) => {
       const roundData = fData[rnd] || {};
-      html += `<div class="card"><div class="sec-hdr"><div class="sec-title">${getOrdinal(i+1)} Collection</div></div>`;
+      html += `<div class="card">
+        <div class="sec-hdr">
+          <div class="sec-title">${getOrdinal(i+1)} Collection</div>
+          ${isAdmin ? `<button style="background:var(--s);color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:700;" onclick="deleteFundRound('${monthKey}', '${rnd}')">✕ Remove</button>` : ''}
+        </div>`;
       html += `<div class="tbl-wrap"><table class="mt"><tr><th style="text-align:left;">Member</th><th>Paid (৳)</th>${isAdmin?'<th>Action</th>':''}</tr>`;
       
       membersArr().forEach((m, idx) => {
@@ -1039,6 +1074,11 @@ function saveFund(monthKey, round, memId) {
   } else {
     db.ref(`funds/${monthKey}/${round}/${memId}`).set(0).then(() => toast('Saved!'));
   }
+}
+
+function deleteFundRound(monthKey, round) {
+  if (!confirm('Are you sure you want to delete this entire collection round for everyone?')) return;
+  db.ref(`funds/${monthKey}/${round}`).remove().then(() => toast('Round removed.'));
 }
 
 // ── PROFILE ──

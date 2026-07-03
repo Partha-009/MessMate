@@ -218,7 +218,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
       
       <div id="payment-alert" style="display:none; background:#FFF0F3; color:#d63060; padding:.8rem; border-radius:12px; margin-bottom:.9rem; font-weight:700; font-size:.85rem; border:1px solid #FF6584;">
-        ⚠️ You have not given the money for the <span id="alert-nth"></span> time yet.
+        ⚠️ You have pending payments for this month: <span id="alert-nth"></span>
       </div>
 
       <div class="card" style="background:linear-gradient(135deg,#6C63FF,#43D9AD); color:#fff; text-align:center; padding:1.2rem;">
@@ -618,6 +618,23 @@ function avtH(m, idx, size, fSize) {
 }
 
 // ── TRACKER ──
+function getPendingForUser(memId, fData) {
+  const rounds = Object.keys(fData).filter(k => k.startsWith('round_')).sort();
+  let pendingArr = [];
+  rounds.forEach((rnd, i) => {
+    const target = fData[rnd]._target || 0;
+    const pData = fData[rnd][memId];
+    const p = (typeof pData === 'object' && pData !== null) ? (pData.amount || 0) : (pData || 0);
+    
+    if (target > 0) {
+      if (p < target) pendingArr.push(`${getOrdinal(i+1)} (Due: ৳${target - p})`);
+    } else {
+      if (p === 0) pendingArr.push(`${getOrdinal(i+1)}`);
+    }
+  });
+  return pendingArr;
+}
+
 function renderTracker(){
   if(!uid) return;
   document.getElementById('trk-mlbl').textContent = mlbl(trkOff);
@@ -636,9 +653,7 @@ function renderTracker(){
   const mdata=mealMonth(trkOff);
   const mbs=membersArr();
 
-  // Get current funds data to display unpaid warnings in tracker slot
   const fData = fundsCache[mk(trkOff)] || {};
-  const fundRounds = Object.keys(fData).filter(k => k.startsWith('round_')).sort();
 
   let head='<tr><th>Member</th>';
   week.forEach(d=>{ head+=`<th colspan="2">${dn(d)}<br><span style="font-size:.66rem;opacity:.8;">${d.getDate()}</span></th>`; });
@@ -654,14 +669,8 @@ function renderTracker(){
     const isMe=m.id===uid;
     const mm=mdata[m.id]||{};
     
-    // Check pending payments for this member
-    let unpaid = [];
-    fundRounds.forEach((rnd, i) => {
-      const pData = fData[rnd][m.id];
-      const p = (typeof pData === 'object' && pData !== null) ? (pData.amount || 0) : (pData || 0);
-      if(p === 0) unpaid.push(getOrdinal(i+1));
-    });
-    let unpaidHtml = unpaid.length > 0 ? `<div style="font-size:0.65rem; color:var(--s); font-weight:600; line-height:1.2; margin-top:2px;">Pending: ${unpaid.join(', ')}</div>` : '';
+    let unpaid = getPendingForUser(m.id, fData);
+    let unpaidHtml = unpaid.length > 0 ? `<div style="font-size:0.65rem; color:var(--s); font-weight:600; line-height:1.2; margin-top:2px; max-width:140px; word-wrap:break-word;">Pending: ${unpaid.join(', ')}</div>` : '';
 
     let row=`<td>
       <div style="display:flex;align-items:center;gap:6px;">
@@ -990,18 +999,11 @@ function getOrdinal(n) {
 function checkPaymentAlert() {
   if (!uid) return;
   const fData = fundsCache[mk(0)] || {};
-  const rounds = Object.keys(fData).filter(k => k.startsWith('round_')).sort();
+  let pendingArr = getPendingForUser(uid, fData);
   const alertEl = document.getElementById('payment-alert');
-  
-  let unpaid = [];
-  rounds.forEach((rnd, i) => {
-    const myPaymentData = fData[rnd][uid];
-    const myPayment = (typeof myPaymentData === 'object' && myPaymentData !== null) ? (myPaymentData.amount || 0) : (myPaymentData || 0);
-    if (myPayment === 0) unpaid.push(getOrdinal(i+1));
-  });
 
-  if (unpaid.length > 0) {
-    document.getElementById('alert-nth').textContent = unpaid.join(', ');
+  if (pendingArr.length > 0) {
+    document.getElementById('alert-nth').textContent = pendingArr.join(', ');
     alertEl.style.display = 'block';
   } else {
     alertEl.style.display = 'none';
@@ -1025,11 +1027,21 @@ function renderFunds() {
   } else {
     rounds.forEach((rnd, i) => {
       const roundData = fData[rnd] || {};
+      const targetAmt = roundData._target || 0;
+      
       html += `<div class="card">
-        <div class="sec-hdr">
+        <div class="sec-hdr" style="margin-bottom:0.5rem;">
           <div class="sec-title">${getOrdinal(i+1)} Collection</div>
-          ${isAdmin ? `<button style="background:var(--s);color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:700;" onclick="deleteFundRound('${monthKey}', '${rnd}')">✕ Remove</button>` : ''}
+          ${isAdmin ? `
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span style="font-size:0.75rem; font-weight:700; color:var(--sub);">Target (৳):</span>
+              <input type="number" id="target_${rnd}" value="${targetAmt || ''}" style="width:60px; padding:4px; border:1px solid var(--bd); border-radius:4px; outline:none; font-size:0.8rem;">
+              <button onclick="saveTarget('${monthKey}', '${rnd}')" style="background:var(--p); color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem; font-weight:700;">Set</button>
+              <button style="background:var(--s);color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:.75rem;font-weight:700;" onclick="deleteFundRound('${monthKey}', '${rnd}')">✕ Remove</button>
+            </div>
+          ` : (targetAmt > 0 ? `<div style="font-size:0.85rem; font-weight:700; color:var(--p);">Target: ৳${targetAmt}</div>` : '')}
         </div>`;
+        
       html += `<div class="tbl-wrap"><table class="mt"><tr><th style="text-align:left;">Member</th><th>Paid (৳)</th>${isAdmin?'<th>Action</th>':''}</tr>`;
       
       membersArr().forEach((m, idx) => {
@@ -1042,10 +1054,18 @@ function renderFunds() {
           paid = fundObj || 0;
         }
 
+        let dueStr = '';
+        let color = paid > 0 ? '#1a9e72' : 'var(--s)';
+        if (targetAmt > 0 && paid < targetAmt) {
+          color = paid > 0 ? '#d63060' : 'var(--s)';
+          dueStr = `<div style="font-size:0.65rem; color:var(--s); font-weight:700;">Due: ৳${targetAmt - paid}</div>`;
+        }
+
         html += `<tr>
           <td><span style="display:flex;align-items:center;gap:4px;">${avtH(m, idx, 22, '.58rem')}${m.name}</span></td>
-          <td style="font-weight:700; color:${paid>0?'#1a9e72':'var(--s)'};">
+          <td style="font-weight:700; color:${color}; line-height:1.2;">
             ${paid>0 ? `৳${paid} <div style="font-size:0.65rem; color:var(--sub); font-weight:normal;">${dateStr}</div>` : 'Unpaid'}
+            ${dueStr}
           </td>
           ${isAdmin?`<td><div style="display:flex;gap:4px;justify-content:center;"><input type="number" id="fund_${rnd}_${m.id}" placeholder="Amt" style="width:60px; padding:4px; border:1px solid var(--bd); border-radius:4px; outline:none;" value="${paid>0?paid:''}"><button onclick="saveFund('${monthKey}', '${rnd}', '${m.id}')" style="padding:4px 8px; background:var(--p); color:#fff; border:none; border-radius:4px; cursor:pointer;">Save</button></div></td>`:''}
         </tr>`;
@@ -1054,6 +1074,11 @@ function renderFunds() {
     });
   }
   document.getElementById('funds-container').innerHTML = html;
+}
+
+function saveTarget(monthKey, round) {
+  const val = Number(document.getElementById(`target_${round}`).value) || 0;
+  db.ref(`funds/${monthKey}/${round}/_target`).set(val).then(() => toast('Target updated!'));
 }
 
 function createNewFundRound() {

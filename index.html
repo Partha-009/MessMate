@@ -45,8 +45,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .page.active{display:block;}
 
 /* ── BOTTOM NAV ── */
-.bnav{background:#fff;border-top:1px solid var(--bd);display:flex;position:fixed;bottom:0;left:0;right:0;z-index:100;box-shadow:0 -2px 16px rgba(108,99,255,.08); overflow-x:auto;}
-.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.5rem .2rem;border:none;background:none;cursor:pointer;color:var(--sub);font-size:.66rem;font-weight:600;gap:2px;transition:color .2s; min-width: 60px;}
+.bnav{background:#fff;border-top:1px solid var(--bd);display:flex;position:fixed;bottom:0;left:0;right:0;z-index:100;box-shadow:0 -2px 16px rgba(108,99,255,.08); overflow-x:auto; scrollbar-width:none;}
+.bnav::-webkit-scrollbar{display:none;}
+.nb{flex:1 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.5rem .2rem;border:none;background:none;cursor:pointer;color:var(--sub);font-size:.66rem;font-weight:600;gap:2px;transition:color .2s; min-width: 60px;}
 .nb .ni{font-size:1.2rem;}
 .nb.active{color:var(--p);}
 
@@ -352,6 +353,22 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       <div id="funds-container"></div>
     </div>
 
+    <!-- BILLS PAGE (Electric & WiFi) -->
+    <div class="page" id="page-bills">
+      <div class="sec-hdr">
+        <div class="sec-title">🔌 Utility Bills</div>
+        <div class="mnav">
+          <button class="mnb" onclick="shiftMonth('bill',-1)">◀</button>
+          <span class="mlbl" id="bill-mlbl"></span>
+          <button class="mnb" onclick="shiftMonth('bill',1)">▶</button>
+        </div>
+      </div>
+      <div id="admin-bill-ctrl" style="display:none; margin-bottom:.9rem;">
+        <button class="btn-p" onclick="createNewBill()">+ Add New Bill</button>
+      </div>
+      <div id="bills-container"></div>
+    </div>
+
     <!-- PROFILE PAGE -->
     <div class="page" id="page-profile">
       <div class="sec-hdr">
@@ -393,6 +410,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
     <button class="nb" onclick="goPage('costs',this)"><span class="ni">💸</span>Costs</button>
     <button class="nb" onclick="goPage('stats',this)"><span class="ni">📈</span>Stats</button>
     <button class="nb" onclick="goPage('funds',this)"><span class="ni">💰</span>Funds</button>
+    <button class="nb" onclick="goPage('bills',this)"><span class="ni">🔌</span>Bills</button>
     <button class="nb" onclick="goPage('profile',this)"><span class="ni">👤</span>Profile</button>
   </nav>
 </div><!-- /app-screen -->
@@ -439,8 +457,8 @@ window.addEventListener('load', function() {
 // ── STATE ──
 let auth, db;
 let uid = null, uName = null;
-let trkOff = 0, costOff = 0, statsOff = 0, fundOff = 0, weekIdx = 0;
-let membersCache = {}, mealsCache = {}, costsCache = {}, fundsCache = {};
+let trkOff = 0, costOff = 0, statsOff = 0, fundOff = 0, billOff = 0, weekIdx = 0;
+let membersCache = {}, mealsCache = {}, costsCache = {}, fundsCache = {}, billsCache = {};
 let recB64 = null, recName = '';
 let timerInterval;
 
@@ -478,12 +496,13 @@ function bootApp() {
 }
 
 // ── LISTENERS ──
-let lMembers, lMeals, lCosts, lFunds;
+let lMembers, lMeals, lCosts, lFunds, lBills;
 function attachAll() {
   lMembers = db.ref('members').on('value', s => { membersCache = s.val()||{}; repaintActive(); });
   lMeals   = db.ref('meals'  ).on('value', s => { mealsCache   = s.val()||{}; repaintActive(); updateTimer(); });
   lCosts   = db.ref('costs'  ).on('value', s => { costsCache   = s.val()||{}; repaintActive(); });
   lFunds   = db.ref('funds'  ).on('value', s => { fundsCache   = s.val()||{}; repaintActive(); checkPaymentAlert(); });
+  lBills   = db.ref('utilities').on('value', s => { billsCache   = s.val()||{}; repaintActive(); checkPaymentAlert(); });
   startTimer();
 }
 function detachAll() {
@@ -491,6 +510,7 @@ function detachAll() {
   if(lMeals)   db.ref('meals')  .off('value',lMeals);
   if(lCosts)   db.ref('costs')  .off('value',lCosts);
   if(lFunds)   db.ref('funds')  .off('value',lFunds);
+  if(lBills)   db.ref('utilities').off('value',lBills);
   if(timerInterval) clearInterval(timerInterval);
 }
 function repaintActive() {
@@ -502,6 +522,7 @@ function repaintActive() {
   else if(id==='page-costs')   renderCosts();
   else if(id==='page-stats')   renderStats();
   else if(id==='page-funds')   renderFunds();
+  else if(id==='page-bills')   renderBills();
   else if(id==='page-profile') renderProfile();
 }
 
@@ -560,6 +581,7 @@ function goPage(pg,btn){
   else if(pg==='costs')   renderCosts();
   else if(pg==='stats')   renderStats();
   else if(pg==='funds')   renderFunds();
+  else if(pg==='bills')   renderBills();
   else if(pg==='profile') renderProfile();
 }
 function shiftMonth(sec,dir){
@@ -567,6 +589,7 @@ function shiftMonth(sec,dir){
   else if(sec==='cost'){  costOff+=dir;   renderCosts();   }
   else if(sec==='stats'){ statsOff+=dir;  renderStats();  }
   else if(sec==='fund'){  fundOff+=dir;   renderFunds();  }
+  else if(sec==='bill'){  billOff+=dir;   renderBills();  }
 }
 
 // ── HELPERS ──
@@ -635,6 +658,24 @@ function getPendingForUser(memId, fData) {
   return pendingArr;
 }
 
+function getPendingBillsForUser(memId, bData) {
+  const bKeys = Object.keys(bData).filter(k => !k.startsWith('_')).sort();
+  let pending = [];
+  bKeys.forEach(bId => {
+    const target = bData[bId]._target || 0;
+    const bName = bData[bId]._name || 'Bill';
+    const pData = bData[bId][memId];
+    const p = (typeof pData === 'object' && pData !== null) ? (pData.amount || 0) : (pData || 0);
+
+    if (target > 0 && p < target) {
+      pending.push(`${bName} (Due: ৳${target - p})`);
+    } else if (target === 0 && p === 0) {
+      pending.push(`${bName}`);
+    }
+  });
+  return pending;
+}
+
 function renderTracker(){
   if(!uid) return;
   document.getElementById('trk-mlbl').textContent = mlbl(trkOff);
@@ -654,6 +695,7 @@ function renderTracker(){
   const mbs=membersArr();
 
   const fData = fundsCache[mk(trkOff)] || {};
+  const uData = billsCache[mk(trkOff)] || {};
 
   let head='<tr><th>Member</th>';
   week.forEach(d=>{ head+=`<th colspan="2">${dn(d)}<br><span style="font-size:.66rem;opacity:.8;">${d.getDate()}</span></th>`; });
@@ -669,7 +711,10 @@ function renderTracker(){
     const isMe=m.id===uid;
     const mm=mdata[m.id]||{};
     
-    let unpaid = getPendingForUser(m.id, fData);
+    let unpaidFunds = getPendingForUser(m.id, fData);
+    let unpaidBills = getPendingBillsForUser(m.id, uData);
+    let unpaid = unpaidFunds.concat(unpaidBills);
+    
     let unpaidHtml = unpaid.length > 0 ? `<div style="font-size:0.65rem; color:var(--s); font-weight:600; line-height:1.2; margin-top:2px; max-width:140px; word-wrap:break-word;">Pending: ${unpaid.join(', ')}</div>` : '';
 
     let row=`<td>
@@ -951,7 +996,7 @@ function renderStats(){
   document.getElementById('stats-cats').innerHTML=catH||'<div style="color:var(--sub);">No expenses yet.</div>';
 }
 
-// ── TIMER & FUNDS ──
+// ── TIMER & ALERTS ──
 function startTimer() {
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(updateTimer, 1000);
@@ -999,17 +1044,23 @@ function getOrdinal(n) {
 function checkPaymentAlert() {
   if (!uid) return;
   const fData = fundsCache[mk(0)] || {};
-  let pendingArr = getPendingForUser(uid, fData);
+  const uData = billsCache[mk(0)] || {};
+  
+  let pendingFunds = getPendingForUser(uid, fData);
+  let pendingBills = getPendingBillsForUser(uid, uData);
+  let allPending = pendingFunds.concat(pendingBills);
+
   const alertEl = document.getElementById('payment-alert');
 
-  if (pendingArr.length > 0) {
-    document.getElementById('alert-nth').textContent = pendingArr.join(', ');
+  if (allPending.length > 0) {
+    document.getElementById('alert-nth').textContent = allPending.join(', ');
     alertEl.style.display = 'block';
   } else {
     alertEl.style.display = 'none';
   }
 }
 
+// ── FUNDS ──
 function renderFunds() {
   if(!uid) return;
   document.getElementById('fund-mlbl').textContent = mlbl(fundOff);
@@ -1104,6 +1155,104 @@ function saveFund(monthKey, round, memId) {
 function deleteFundRound(monthKey, round) {
   if (!confirm('Are you sure you want to delete this entire collection round for everyone?')) return;
   db.ref(`funds/${monthKey}/${round}`).remove().then(() => toast('Round removed.'));
+}
+
+// ── UTILITY BILLS ──
+function renderBills() {
+  if(!uid) return;
+  document.getElementById('bill-mlbl').textContent = mlbl(billOff);
+  const monthKey = mk(billOff);
+  
+  const isAdmin = (uName && uName.toLowerCase().includes('partha'));
+  document.getElementById('admin-bill-ctrl').style.display = isAdmin ? 'block' : 'none';
+  
+  const bData = billsCache[monthKey] || {};
+  const bKeys = Object.keys(bData).filter(k => !k.startsWith('_')).sort();
+  
+  let html = '';
+  if (bKeys.length === 0) {
+    html = '<div style="text-align:center;color:var(--sub);padding:2rem;">No bills added this month.</div>';
+  } else {
+    bKeys.forEach((bId) => {
+      const billObj = bData[bId] || {};
+      const targetAmt = billObj._target || 0;
+      const bName = billObj._name || 'Bill';
+      
+      html += `<div class="card">
+        <div class="sec-hdr" style="margin-bottom:0.5rem;">
+          <div class="sec-title">⚡ ${bName}</div>
+          ${isAdmin ? `
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span style="font-size:0.75rem; font-weight:700; color:var(--sub);">Target (৳):</span>
+              <input type="number" id="btarget_${bId}" value="${targetAmt || ''}" style="width:60px; padding:4px; border:1px solid var(--bd); border-radius:4px; outline:none; font-size:0.8rem;">
+              <button onclick="saveBillTarget('${monthKey}', '${bId}')" style="background:var(--p); color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem; font-weight:700;">Set</button>
+              <button style="background:var(--s);color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:.75rem;font-weight:700;" onclick="deleteBill('${monthKey}', '${bId}')">✕ Remove</button>
+            </div>
+          ` : (targetAmt > 0 ? `<div style="font-size:0.85rem; font-weight:700; color:var(--p);">Target: ৳${targetAmt}</div>` : '')}
+        </div>`;
+        
+      html += `<div class="tbl-wrap"><table class="mt"><tr><th style="text-align:left;">Member</th><th>Paid (৳)</th>${isAdmin?'<th>Action</th>':''}</tr>`;
+      
+      membersArr().forEach((m, idx) => {
+        const pData = billObj[m.id];
+        let paid = 0; let dateStr = '';
+        if (typeof pData === 'object' && pData !== null) {
+          paid = pData.amount || 0;
+          dateStr = pData.date || '';
+        } else {
+          paid = pData || 0;
+        }
+
+        let dueStr = '';
+        let color = paid > 0 ? '#1a9e72' : 'var(--s)';
+        if (targetAmt > 0 && paid < targetAmt) {
+          color = paid > 0 ? '#d63060' : 'var(--s)';
+          dueStr = `<div style="font-size:0.65rem; color:var(--s); font-weight:700;">Due: ৳${targetAmt - paid}</div>`;
+        }
+
+        html += `<tr>
+          <td><span style="display:flex;align-items:center;gap:4px;">${avtH(m, idx, 22, '.58rem')}${m.name}</span></td>
+          <td style="font-weight:700; color:${color}; line-height:1.2;">
+            ${paid>0 ? `৳${paid} <div style="font-size:0.65rem; color:var(--sub); font-weight:normal;">${dateStr}</div>` : 'Unpaid'}
+            ${dueStr}
+          </td>
+          ${isAdmin?`<td><div style="display:flex;gap:4px;justify-content:center;"><input type="number" id="bill_${bId}_${m.id}" placeholder="Amt" style="width:60px; padding:4px; border:1px solid var(--bd); border-radius:4px; outline:none;" value="${paid>0?paid:''}"><button onclick="saveBillPayment('${monthKey}', '${bId}', '${m.id}')" style="padding:4px 8px; background:var(--p); color:#fff; border:none; border-radius:4px; cursor:pointer;">Save</button></div></td>`:''}
+        </tr>`;
+      });
+      html += `</table></div></div>`;
+    });
+  }
+  document.getElementById('bills-container').innerHTML = html;
+}
+
+function saveBillTarget(monthKey, bId) {
+  const val = Number(document.getElementById(`btarget_${bId}`).value) || 0;
+  db.ref(`utilities/${monthKey}/${bId}/_target`).set(val).then(() => toast('Bill target updated!'));
+}
+
+function createNewBill() {
+  const bName = prompt("Enter Bill Name (e.g. Electric Bill, WiFi Bill):");
+  if(!bName) return;
+  const monthKey = mk(billOff);
+  const bId = 'b_' + Date.now();
+  db.ref(`utilities/${monthKey}/${bId}/_name`).set(bName).then(() => toast('New bill added! ⚡'));
+}
+
+function saveBillPayment(monthKey, bId, memId) {
+  const amt = document.getElementById(`bill_${bId}_${memId}`).value;
+  const numAmt = Number(amt);
+  if (numAmt > 0) {
+    const now = new Date();
+    const dateStr = now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    db.ref(`utilities/${monthKey}/${bId}/${memId}`).set({ amount: numAmt, date: dateStr }).then(() => toast('Saved!'));
+  } else {
+    db.ref(`utilities/${monthKey}/${bId}/${memId}`).set(0).then(() => toast('Saved!'));
+  }
+}
+
+function deleteBill(monthKey, bId) {
+  if (!confirm('Are you sure you want to delete this bill entirely?')) return;
+  db.ref(`utilities/${monthKey}/${bId}`).remove().then(() => toast('Bill removed.'));
 }
 
 // ── PROFILE ──

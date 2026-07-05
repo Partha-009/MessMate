@@ -1142,8 +1142,8 @@ function createNewFundRound() {
 
 function saveFund(monthKey, round, memId) {
   const amt = document.getElementById(`fund_${round}_${memId}`).value;
-  const numAmt = Number(amt);
-  if (numAmt > 0) {
+  const numAmt = parseFloat(amt);
+  if (!isNaN(numAmt) && numAmt > 0) {
     const now = new Date();
     const dateStr = now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     db.ref(`funds/${monthKey}/${round}/${memId}`).set({ amount: numAmt, date: dateStr }).then(() => toast('Saved!'));
@@ -1240,8 +1240,8 @@ function createNewBill() {
 
 function saveBillPayment(monthKey, bId, memId) {
   const amt = document.getElementById(`bill_${bId}_${memId}`).value;
-  const numAmt = Number(amt);
-  if (numAmt > 0) {
+  const numAmt = parseFloat(amt);
+  if (!isNaN(numAmt) && numAmt > 0) {
     const now = new Date();
     const dateStr = now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     db.ref(`utilities/${monthKey}/${bId}/${memId}`).set({ amount: numAmt, date: dateStr }).then(() => toast('Saved!'));

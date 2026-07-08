@@ -701,4 +701,659 @@ function renderTracker(){
     let unpaidBills = getPendingBillsForUser(m.id, uData);
     let unpaid = unpaidFunds.concat(unpaidBills);
     
-    let unpaidHtml = unpaid.length > 0 ? `<div style="font-size:0.65rem; color:var(--s);
+    let unpaidHtml = unpaid.length > 0 ? `<div style="font-size:0.65rem; color:var(--s); font-weight:600; line-height:1.2; margin-top:2px; max-width:140px; word-wrap:break-word;">Pending: ${unpaid.join(', ')}</div>` : '';
+
+    let row=`<td>
+      <div style="display:flex;align-items:center;gap:6px;">
+        ${avtH(m, idx, 26, '.65rem')}
+        <div style="display:flex;flex-direction:column;justify-content:center;text-align:left;">
+          <div>${m.name}${isMe?'<span class="you-tag">You</span>':''}</div>
+          ${unpaidHtml}
+        </div>
+      </div>
+    </td>`;
+    
+    week.forEach(d=>{
+      const dk=fmtDate(d);
+      let b=mm[dk+'_b']||'', l=mm[dk+'_l']||'';
+      const cls=isMe?'mine':'others';
+      
+      const now = new Date();
+      const isToday = now.toDateString() === d.toDateString();
+      const isPast = d < new Date(new Date().setHours(0,0,0,0));
+      
+      if (b === '') {
+        if (isPast || (isToday && now.getHours() >= 13)) b = 'cross';
+      }
+      if (l === '') {
+        if (isPast || (isToday && (now.getHours() > 18 || (now.getHours() === 18 && now.getMinutes() >= 30)))) l = 'cross';
+      }
+
+      const ob=isMe?`onclick="tog('${m.id}','${dk}','b')"`:'' ;
+      const ol=isMe?`onclick="tog('${m.id}','${dk}','l')"`:'' ;
+      row+=`<td><span class="mc ${b==='tick'?'tick':b==='cross'?'cross':'empty'} ${cls}" ${ob}>${b==='tick'?'✓':b==='cross'?'✗':'·'}</span></td>`;
+      row+=`<td><span class="mc ${l==='tick'?'tick':l==='cross'?'cross':'empty'} ${cls}" ${ol}>${l==='tick'?'✓':l==='cross'?'✗':'·'}</span></td>`;
+    });
+    
+    let tot=0; Object.values(mm).forEach(x=>{if(x==='tick')tot++;});
+    row+=`<td><span class="bdg">${tot}</span></td>`;
+    body+=`<tr>${row}</tr>`;
+  });
+  if(!mbs.length) body+=`<tr><td colspan="16" style="text-align:center;color:var(--sub);padding:2rem;font-size:.85rem;">No members yet. Register to join! 👥</td></tr>`;
+  document.getElementById('mt-body').innerHTML=body;
+  renderMonthlyTotals();
+}
+
+function setWeek(i){weekIdx=i;renderTracker();}
+
+function tog(memId, dk, slot) {
+  if (memId !== uid) return;
+  
+  const now = new Date();
+  const [y, m, d] = dk.split('-');
+  const mealDate = new Date(y, m - 1, d);
+  const isToday = now.toDateString() === mealDate.toDateString();
+  
+  if (isToday) {
+    if (slot === 'b' && now.getHours() >= 13) { toast('Lunch voting closed at 1:00 PM'); return; }
+    if (slot === 'l' && (now.getHours() > 18 || (now.getHours() === 18 && now.getMinutes() >= 30))) { toast('Dinner voting closed at 6:30 PM'); return; }
+  } else if (mealDate < new Date(now.setHours(0,0,0,0))) {
+    toast('Cannot vote for past days'); return;
+  }
+
+  const ref = db.ref(`meals/${mk(trkOff)}/${memId}/${dk}_${slot}`);
+  ref.once('value', s => {
+    const cur = s.val() || '';
+    ref.set(cur === '' ? 'tick' : cur === 'tick' ? 'cross' : '');
+  });
+}
+
+function renderMonthlyTotals(){
+  const mdata=mealMonth(trkOff), mbs=membersArr();
+  let html='';
+  mbs.forEach((m,idx)=>{
+    const mm=mdata[m.id]||{}; let cnt=0;
+    Object.values(mm).forEach(x=>{if(x==='tick')cnt++;});
+    const pct=Math.min(100,Math.round(cnt/62*100));
+    html+=`<div style="display:flex;align-items:center;gap:.55rem;margin-bottom:.5rem;">
+      ${avtH(m, idx, 30, '.65rem')}
+      <span style="font-size:.8rem;font-weight:700;min-width:75px;">${m.name}</span>
+      <div style="flex:1;"><div class="pb-wrap"><div class="pb-fill" style="width:${pct}%"></div></div></div>
+      <span class="bdg">${cnt} meals</span>
+    </div>`;
+  });
+  document.getElementById('monthly-totals').innerHTML=html||'<div style="color:var(--sub);font-size:.82rem;">No data yet.</div>';
+}
+
+// ── MEMBERS ──
+function renderMembers(){
+  const mbs=membersArr();
+  const isAdmin = (uName && uName.toLowerCase().includes('partha'));
+  document.getElementById('mem-count').textContent=`${mbs.length} / 20 members`;
+  if(!mbs.length){
+    document.getElementById('mem-grid').innerHTML='<div style="text-align:center;color:var(--sub);padding:2rem;">No members yet — register to join! 🎉</div>';
+    return;
+  }
+  const thisMk=mk(0), mdata=mealsCache[thisMk]||{};
+  let html='<div class="mgrid">';
+  mbs.forEach((m,idx)=>{
+    const isMe=m.id===uid;
+    const mm=mdata[m.id]||{}; let cnt=0;
+    Object.values(mm).forEach(x=>{if(x==='tick')cnt++;});
+    html+=`<div class="mcard">
+      ${(isAdmin && !isMe) ? `<button class="btn-del-m" onclick="delMember('${m.id}')">✕</button>`:''}
+      ${avtH(m, idx, 46, '1.1rem')}
+      <div class="mname">${m.name}</div>
+      ${isMe?'<span class="you-tag">You</span>':''}
+      <div class="msub">${cnt} meals this month</div>
+    </div>`;
+  });
+  html+='</div>';
+  document.getElementById('mem-grid').innerHTML=html;
+}
+function addMemberManual(){
+  const nm=document.getElementById('new-mem').value.trim();
+  if(!nm){toast('Enter a name');return;}
+  const mbs=membersArr();
+  if(mbs.length>=20){toast('Max 20 members!');return;}
+  if(mbs.find(m=>m.name.toLowerCase()===nm.toLowerCase())){toast('Member exists');return;}
+  db.ref('members/manual_'+Date.now()).set({name:nm,joinedAt:new Date().toISOString()})
+    .then(()=>{document.getElementById('new-mem').value='';toast(nm+' added! 🎉');})
+    .catch(()=>toast('Failed to add'));
+}
+function delMember(id){
+  if(!confirm('Remove this member?')) return;
+  db.ref('members/'+id).remove().then(()=>toast('Removed.')).catch(()=>toast('Failed'));
+}
+
+// ── COSTS ──
+function handleReceipt(inp){
+  const file=inp.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas');
+      const MAX=700; let w=img.width,h=img.height;
+      if(w>MAX){h=h*(MAX/w);w=MAX;} if(h>MAX){w=w*(MAX/h);h=MAX;}
+      c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      recB64=c.toDataURL('image/jpeg',.65);
+      recName=file.name;
+      document.getElementById('c-rec-nm').textContent='✅ '+file.name.slice(0,18);
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function addCost(){
+  const cat=v('c-cat'), nm=v('c-nm').trim(), amt=parseFloat(v('c-amt')), dt=v('c-dt');
+  if(!nm){toast('Enter item name');return;}
+  if(isNaN(amt)||amt<=0){toast('Enter valid amount');return;}
+  if(!dt){toast('Select date');return;}
+  const month=dt.slice(0,7), id='c'+Date.now();
+  const entry={category:cat,itemName:nm,amount:amt,date:dt,addedBy:uid,addedByName:uName};
+  if(recB64) entry.receipt=recB64;
+  db.ref(`costs/${month}/${id}`).set(entry)
+    .then(()=>{
+      document.getElementById('c-nm').value='';
+      document.getElementById('c-amt').value='';
+      recB64=null; recName='';
+      document.getElementById('c-rec-nm').textContent='';
+      document.getElementById('c-rec').value='';
+      toast('Expense added! 💸');
+    })
+    .catch(()=>toast('Failed — image may be too large'));
+}
+
+function delCost(month, id) {
+  if (confirm('Are you sure you want to delete this spending history?')) {
+    db.ref(`costs/${month}/${id}`).remove()
+      .then(() => toast('Deleted.'))
+      .catch(() => toast('Failed'));
+  }
+}
+
+function renderCosts() {
+  if (!uid) return;
+  
+  // Admin check ensures only you can see the delete button
+  const isAdmin = (uName && uName.toLowerCase().includes('partha')); 
+
+  const month=mk(costOff);
+  document.getElementById('cost-mlbl').textContent=mlbl(costOff);
+  const entries=costMonth(costOff);
+  const total=entries.reduce((s,[,c])=>s+c.amount,0);
+  const meals=totalMeals(costOff);
+  const perMeal=meals>0?total/meals:0;
+  document.getElementById('cost-total').textContent='৳'+total.toFixed(2);
+  document.getElementById('cost-per-meal').textContent=meals>0?'৳'+perMeal.toFixed(2):'—';
+  document.getElementById('cost-total-meals').textContent=meals+' meals';
+
+  let catH='';
+  CATS.forEach(cat=>{
+    const t=entries.filter(([,c])=>c.category===cat.k).reduce((s,[,c])=>s+c.amount,0);
+    catH+=`<div class="cc" onclick="showCat('${cat.k}')">
+      <div class="ci">${cat.i}</div><div class="cn">${cat.k}</div><div class="ct">৳${t.toFixed(2)}</div>
+    </div>`;
+  });
+  document.getElementById('cost-cats').innerHTML=catH;
+
+  const sorted=[...entries].sort((a,b)=>b[1].date.localeCompare(a[1].date)).slice(0,20);
+  let listH='';
+  sorted.forEach(([id,c])=>{
+    const cat=CATS.find(x=>x.k===c.category)||{i:'📦'};
+    listH+=`<li class="cl-item">
+      <div>
+        <div class="cl-name">${cat.i} ${c.itemName}</div>
+        <div class="cl-date">${c.date} · ${c.category} · ${c.addedByName||'?'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.35rem;">
+        ${c.receipt?`<span style="cursor:pointer;font-size:1.1rem;" onclick="viewRec('${id}','${month}')">🧾</span>`:''}
+        <span class="cl-amt">৳${c.amount.toFixed(2)}</span>
+        ${isAdmin ? `<button class="btn-del-c" onclick="delCost('${month}','${id}')">✕</button>` : ''}
+      </div>
+    </li>`;
+  });
+  document.getElementById('cost-list').innerHTML=listH||'<li style="color:var(--sub);font-size:.82rem;padding:1rem;text-align:center;">No expenses yet.</li>';
+}
+
+function showCat(key){
+  const month=mk(costOff);
+  const cat=CATS.find(c=>c.k===key)||{i:'📦',k:key};
+  const entries=costMonth(costOff).filter(([,c])=>c.category===key).sort((a,b)=>b[1].date.localeCompare(a[1].date));
+  const total=entries.reduce((s,[,c])=>s+c.amount,0);
+  let html=`<div style="font-size:1rem;font-weight:800;color:var(--p);margin-bottom:.75rem;">৳${total.toFixed(2)} total</div>`;
+  entries.forEach(([id,c])=>{
+    html+=`<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--bd);">
+      <div><div style="font-weight:600;font-size:.85rem;">${c.itemName}</div>
+      <div style="font-size:.72rem;color:var(--sub);">${c.date}</div></div>
+      <div style="display:flex;align-items:center;gap:.35rem;">
+        ${c.receipt?`<span style="cursor:pointer;" onclick="viewRec('${id}','${month}')">🧾</span>`:''}
+        <span style="font-weight:700;color:var(--p);">৳${c.amount.toFixed(2)}</span>
+      </div>
+    </div>`;
+  });
+  if(!entries.length) html+='<div style="color:var(--sub);padding:1rem 0;text-align:center;">No entries.</div>';
+  openModal(`${cat.i} ${key} — ${mlbl(costOff)}`,html);
+}
+function viewRec(id,month){
+  const c=(costsCache[month]||{})[id];
+  if(!c||!c.receipt) return;
+  openModal('🧾 Receipt',`<img src="${c.receipt}" class="rthumb"/>`);
+}
+
+// ── STATS ──
+function renderStats(){
+  if(!uid) return;
+  document.getElementById('stats-mlbl').textContent=mlbl(statsOff);
+  const mdata=mealMonth(statsOff), entries=costMonth(statsOff), mbs=membersArr();
+  let totMeals=0;
+  mbs.forEach(m=>{const mm=mdata[m.id]||{};Object.values(mm).forEach(x=>{if(x==='tick')totMeals++;});});
+  const totSpend=entries.reduce((s,[,c])=>s+c.amount,0);
+  const perMeal=totMeals>0?totSpend/totMeals:0;
+
+  document.getElementById('stats-grid').innerHTML=`
+    <div class="sc"><div class="sv">${mbs.length}</div><div class="sl">Members</div></div>
+    <div class="sc"><div class="sv">${totMeals}</div><div class="sl">Total Meals</div></div>
+    <div class="sc"><div class="sv">৳${totSpend.toFixed(0)}</div><div class="sl">Total Spend</div></div>
+    <div class="sc"><div class="sv">৳${perMeal.toFixed(1)}</div><div class="sl">Per-Meal Cost</div></div>
+  `;
+
+  let pmH='';
+  mbs.forEach((m,idx)=>{
+    const mm=mdata[m.id]||{}; let cnt=0;
+    Object.values(mm).forEach(x=>{if(x==='tick')cnt++;});
+    const pct=totMeals>0?Math.round(cnt/totMeals*100):0;
+    pmH+=`<div style="display:flex;align-items:center;gap:.55rem;margin-bottom:.55rem;">
+      ${avtH(m, idx, 30, '.65rem')}
+      <div style="flex:1;">
+        <div style="font-size:.8rem;font-weight:700;">${m.name}${m.id===uid?' (You)':''}</div>
+        <div class="pb-wrap"><div class="pb-fill" style="width:${pct}%"></div></div>
+      </div>
+      <span class="bdg">${cnt} meals</span>
+    </div>`;
+  });
+  document.getElementById('stats-members').innerHTML=pmH||'<div style="color:var(--sub);">No data.</div>';
+
+  const totCat=totSpend||1;
+  let catH='';
+  CATS.forEach(cat=>{
+    const t=entries.filter(([,c])=>c.category===cat.k).reduce((s,[,c])=>s+c.amount,0);
+    const pct=Math.round(t/totCat*100);
+    catH+=`<div style="display:flex;align-items:center;gap:.55rem;margin-bottom:.5rem;">
+      <span style="font-size:1.15rem;width:24px;">${cat.i}</span>
+      <div style="flex:1;">
+        <div style="font-size:.8rem;font-weight:700;">${cat.k}</div>
+        <div class="pb-wrap"><div class="pb-fill" style="width:${pct}%"></div></div>
+      </div>
+      <span style="font-size:.8rem;font-weight:700;color:var(--p);">৳${t.toFixed(0)}</span>
+    </div>`;
+  });
+  document.getElementById('stats-cats').innerHTML=catH||'<div style="color:var(--sub);">No expenses yet.</div>';
+}
+
+// ── TIMER & ALERTS ──
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(updateTimer, 1000);
+  updateTimer();
+}
+
+function updateTimer() {
+  const now = new Date();
+  const lunchTarget = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 13, 0, 0);
+  const dinnerTarget = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 30, 0);
+  
+  let target, mealName, slotId;
+  if (now < lunchTarget) {
+    target = lunchTarget; mealName = 'Lunch'; slotId = 'b';
+  } else if (now < dinnerTarget) {
+    target = dinnerTarget; mealName = 'Dinner'; slotId = 'l';
+  } else {
+    target = new Date(lunchTarget); target.setDate(target.getDate() + 1);
+    mealName = 'Tomorrow Lunch'; slotId = 'b';
+  }
+
+  const diff = target - now;
+  const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const s = Math.floor((diff % (1000 * 60)) / 1000);
+  
+  const el = document.getElementById('vote-timer');
+  if(el) el.textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
+  const nm = document.getElementById('next-meal-name');
+  if(nm) nm.textContent = mealName;
+
+  const tDate = fmtDate(target);
+  const mdata = mealsCache[tDate.slice(0,7)] || {};
+  let count = 0;
+  Object.values(mdata).forEach(mem => { if (mem[`${tDate}_${slotId}`] === 'tick') count++; });
+  const nmc = document.getElementById('next-meal-count');
+  if(nmc) nmc.textContent = count;
+}
+
+function getOrdinal(n) {
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function checkPaymentAlert() {
+  if (!uid) return;
+  const fData = fundsCache[mk(0)] || {};
+  const uData = billsCache[mk(0)] || {};
+  
+  let pendingFunds = getPendingForUser(uid, fData);
+  let pendingBills = getPendingBillsForUser(uid, uData);
+  let allPending = pendingFunds.concat(pendingBills);
+
+  const alertEl = document.getElementById('payment-alert');
+
+  if (allPending.length > 0) {
+    document.getElementById('alert-nth').textContent = allPending.join(', ');
+    alertEl.style.display = 'block';
+  } else {
+    alertEl.style.display = 'none';
+  }
+}
+
+// ── FUNDS ──
+function renderFunds() {
+  if(!uid) return;
+  document.getElementById('fund-mlbl').textContent = mlbl(fundOff);
+  const monthKey = mk(fundOff);
+  
+  const isAdmin = (uName && uName.toLowerCase().includes('partha'));
+  document.getElementById('admin-fund-ctrl').style.display = isAdmin ? 'block' : 'none';
+  
+  const fData = fundsCache[monthKey] || {};
+  const rounds = Object.keys(fData).filter(k => k.startsWith('round_')).sort();
+  
+  let html = '';
+  if (rounds.length === 0) {
+    html = '<div style="text-align:center;color:var(--sub);padding:2rem;">No funds collected this month.</div>';
+  } else {
+    rounds.forEach((rnd, i) => {
+      const roundData = fData[rnd] || {};
+      const targetAmt = roundData._target || 0;
+      
+      html += `<div class="card">
+        <div class="sec-hdr" style="margin-bottom:0.5rem;">
+          <div class="sec-title">${getOrdinal(i+1)} Collection</div>
+          ${isAdmin ? `
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span style="font-size:0.75rem; font-weight:700; color:var(--sub);">Target (৳):</span>
+              <input type="number" id="target_${rnd}" value="${targetAmt || ''}" style="width:60px; padding:4px; border:1px solid var(--bd); border-radius:4px; outline:none; font-size:0.8rem;">
+              <button onclick="saveTarget('${monthKey}', '${rnd}')" style="background:var(--p); color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem; font-weight:700;">Set</button>
+              <button style="background:var(--s);color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:.75rem;font-weight:700;" onclick="deleteFundRound('${monthKey}', '${rnd}')">✕ Remove</button>
+            </div>
+          ` : (targetAmt > 0 ? `<div style="font-size:0.85rem; font-weight:700; color:var(--p);">Target: ৳${targetAmt}</div>` : '')}
+        </div>`;
+        
+      html += `<div class="tbl-wrap"><table class="mt"><tr><th style="text-align:left;">Member</th><th>Paid (৳)</th>${isAdmin?'<th>Action</th>':''}</tr>`;
+      
+      membersArr().forEach((m, idx) => {
+        const fundObj = roundData[m.id];
+        let paid = 0; let dateStr = '';
+        if (typeof fundObj === 'object' && fundObj !== null) {
+          paid = fundObj.amount || 0;
+          dateStr = fundObj.date || '';
+        } else {
+          paid = fundObj || 0;
+        }
+
+        let dueStr = '';
+        let color = paid > 0 ? '#1a9e72' : 'var(--s)';
+        if (targetAmt > 0 && paid < targetAmt) {
+          color = paid > 0 ? '#d63060' : 'var(--s)';
+          dueStr = `<div style="font-size:0.65rem; color:var(--s); font-weight:700;">Due: ৳${targetAmt - paid}</div>`;
+        }
+
+        html += `<tr>
+          <td><span style="display:flex;align-items:center;gap:4px;">${avtH(m, idx, 22, '.58rem')}${m.name}</span></td>
+          <td style="font-weight:700; color:${color}; line-height:1.2;">
+            ${paid>0 ? `৳${paid} <div style="font-size:0.65rem; color:var(--sub); font-weight:normal;">${dateStr}</div>` : 'Unpaid'}
+            ${dueStr}
+          </td>
+          ${isAdmin?`<td><div style="display:flex;gap:4px;justify-content:center;"><input type="number" id="fund_${rnd}_${m.id}" placeholder="Amt" style="width:60px; padding:4px; border:1px solid var(--bd); border-radius:4px; outline:none;" value="${paid>0?paid:''}"><button onclick="saveFund('${monthKey}', '${rnd}', '${m.id}')" style="padding:4px 8px; background:var(--p); color:#fff; border:none; border-radius:4px; cursor:pointer;">Save</button></div></td>`:''}
+        </tr>`;
+      });
+      html += `</table></div></div>`;
+    });
+  }
+  document.getElementById('funds-container').innerHTML = html;
+}
+
+function saveTarget(monthKey, round) {
+  const val = Number(document.getElementById(`target_${round}`).value) || 0;
+  db.ref(`funds/${monthKey}/${round}/_target`).set(val).then(() => toast('Target updated!'));
+}
+
+function createNewFundRound() {
+  const monthKey = mk(fundOff);
+  const fData = fundsCache[monthKey] || {};
+  const rounds = Object.keys(fData).filter(k => k.startsWith('round_'));
+  const newRound = 'round_' + (rounds.length + 1);
+  db.ref(`funds/${monthKey}/${newRound}/_created`).set(true).then(() => toast('New round started! 💰'));
+}
+
+function saveFund(monthKey, round, memId) {
+  const amt = document.getElementById(`fund_${round}_${memId}`).value;
+  const numAmt = parseFloat(amt);
+  if (!isNaN(numAmt) && numAmt > 0) {
+    const now = new Date();
+    const dateStr = now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    db.ref(`funds/${monthKey}/${round}/${memId}`).set({ amount: numAmt, date: dateStr }).then(() => toast('Saved!'));
+  } else {
+    db.ref(`funds/${monthKey}/${round}/${memId}`).set(0).then(() => toast('Saved!'));
+  }
+}
+
+function deleteFundRound(monthKey, round) {
+  if (!confirm('Are you sure you want to delete this entire collection round for everyone?')) return;
+  db.ref(`funds/${monthKey}/${round}`).remove().then(() => toast('Round removed.'));
+}
+
+// ── UTILITY BILLS ──
+function renderBills() {
+  if(!uid) return;
+  document.getElementById('bill-mlbl').textContent = mlbl(billOff);
+  const monthKey = mk(billOff);
+  
+  const isAdmin = (uName && uName.toLowerCase().includes('partha'));
+  document.getElementById('admin-bill-ctrl').style.display = isAdmin ? 'block' : 'none';
+  
+  const bData = billsCache[monthKey] || {};
+  const bKeys = Object.keys(bData).filter(k => !k.startsWith('_')).sort();
+  
+  let html = '';
+  if (bKeys.length === 0) {
+    html = '<div style="text-align:center;color:var(--sub);padding:2rem;">No bills added this month.</div>';
+  } else {
+    bKeys.forEach((bId) => {
+      const billObj = bData[bId] || {};
+      const targetAmt = billObj._target || 0;
+      const bName = billObj._name || 'Bill';
+      
+      html += `<div class="card">
+        <div class="sec-hdr" style="margin-bottom:0.5rem;">
+          <div class="sec-title">⚡ ${bName}</div>
+          ${isAdmin ? `
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span style="font-size:0.75rem; font-weight:700; color:var(--sub);">Target (৳):</span>
+              <input type="number" id="btarget_${bId}" value="${targetAmt || ''}" style="width:60px; padding:4px; border:1px solid var(--bd); border-radius:4px; outline:none; font-size:0.8rem;">
+              <button onclick="saveBillTarget('${monthKey}', '${bId}')" style="background:var(--p); color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem; font-weight:700;">Set</button>
+              <button style="background:var(--s);color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:.75rem;font-weight:700;" onclick="deleteBill('${monthKey}', '${bId}')">✕ Remove</button>
+            </div>
+          ` : (targetAmt > 0 ? `<div style="font-size:0.85rem; font-weight:700; color:var(--p);">Target: ৳${targetAmt}</div>` : '')}
+        </div>`;
+        
+      html += `<div class="tbl-wrap"><table class="mt"><tr><th style="text-align:left;">Member</th><th>Paid (৳)</th>${isAdmin?'<th>Action</th>':''}</tr>`;
+      
+      membersArr().forEach((m, idx) => {
+        const pData = billObj[m.id];
+        let paid = 0; let dateStr = '';
+        if (typeof pData === 'object' && pData !== null) {
+          paid = pData.amount || 0;
+          dateStr = pData.date || '';
+        } else {
+          paid = pData || 0;
+        }
+
+        let dueStr = '';
+        let color = paid > 0 ? '#1a9e72' : 'var(--s)';
+        if (targetAmt > 0 && paid < targetAmt) {
+          color = paid > 0 ? '#d63060' : 'var(--s)';
+          dueStr = `<div style="font-size:0.65rem; color:var(--s); font-weight:700;">Due: ৳${targetAmt - paid}</div>`;
+        }
+
+        html += `<tr>
+          <td><span style="display:flex;align-items:center;gap:4px;">${avtH(m, idx, 22, '.58rem')}${m.name}</span></td>
+          <td style="font-weight:700; color:${color}; line-height:1.2;">
+            ${paid>0 ? `৳${paid} <div style="font-size:0.65rem; color:var(--sub); font-weight:normal;">${dateStr}</div>` : 'Unpaid'}
+            ${dueStr}
+          </td>
+          ${isAdmin?`<td><div style="display:flex;gap:4px;justify-content:center;"><input type="number" id="bill_${bId}_${m.id}" placeholder="Amt" style="width:60px; padding:4px; border:1px solid var(--bd); border-radius:4px; outline:none;" value="${paid>0?paid:''}"><button onclick="saveBillPayment('${monthKey}', '${bId}', '${m.id}')" style="padding:4px 8px; background:var(--p); color:#fff; border:none; border-radius:4px; cursor:pointer;">Save</button></div></td>`:''}
+        </tr>`;
+      });
+      html += `</table></div></div>`;
+    });
+  }
+  document.getElementById('bills-container').innerHTML = html;
+}
+
+function saveBillTarget(monthKey, bId) {
+  const val = Number(document.getElementById(`btarget_${bId}`).value) || 0;
+  db.ref(`utilities/${monthKey}/${bId}/_target`).set(val).then(() => toast('Bill target updated!'));
+}
+
+function createNewBill() {
+  const bName = prompt("Enter Bill Name (e.g. Electric Bill, WiFi Bill):");
+  if(!bName) return;
+  const monthKey = mk(billOff);
+  const bId = 'b_' + Date.now();
+  db.ref(`utilities/${monthKey}/${bId}/_name`).set(bName).then(() => toast('New bill added! ⚡'));
+}
+
+function saveBillPayment(monthKey, bId, memId) {
+  const amt = document.getElementById(`bill_${bId}_${memId}`).value;
+  const numAmt = parseFloat(amt);
+  if (!isNaN(numAmt) && numAmt > 0) {
+    const now = new Date();
+    const dateStr = now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    db.ref(`utilities/${monthKey}/${bId}/${memId}`).set({ amount: numAmt, date: dateStr }).then(() => toast('Saved!'));
+  } else {
+    db.ref(`utilities/${monthKey}/${bId}/${memId}`).set(0).then(() => toast('Saved!'));
+  }
+}
+
+function deleteBill(monthKey, bId) {
+  if (!confirm('Are you sure you want to delete this bill entirely?')) return;
+  db.ref(`utilities/${monthKey}/${bId}`).remove().then(() => toast('Bill removed.'));
+}
+
+// ── PROFILE ──
+function renderProfile() {
+  if (!uid) return;
+  const myData = membersCache[uid] || {};
+  const initials = ini(myData.name || 'User');
+  const picDisp = document.getElementById('prof-pic-disp');
+  
+  if (myData.photo) {
+    picDisp.innerHTML = `<img src="${myData.photo}" style="width:100%; height:100%; object-fit:cover;">`;
+  } else {
+    picDisp.innerHTML = initials;
+  }
+  
+  document.getElementById('prof-name-disp').textContent = myData.name || 'User';
+  document.getElementById('prof-uname-disp').textContent = '@' + (myData.username || 'unknown');
+}
+
+function uploadProfilePic(inp) {
+  const file = inp.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      const MAX = 200; let w = img.width, h = img.height;
+      if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } } 
+      else { if (h > MAX) { w *= MAX / h; h = MAX; } }
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      const b64 = c.toDataURL('image/jpeg', 0.7);
+      db.ref(`members/${uid}/photo`).set(b64).then(() => {
+        toast('Profile picture updated! 📸');
+        renderProfile();
+      });
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateUsername() {
+  const newU = document.getElementById('upd-uname').value.trim().toLowerCase().replace(/\s/g, '');
+  if (!newU) { toast('Enter new username'); return; }
+  const user = auth.currentUser;
+  if (user) {
+    user.updateEmail(newU + '@messmate.local').then(() => {
+      return db.ref(`members/${uid}/username`).set(newU);
+    }).then(() => {
+      toast('Username updated! ✨');
+      document.getElementById('upd-uname').value = '';
+      renderProfile();
+    }).catch(e => {
+      toast(e.message || 'Failed to update username. Try re-logging.');
+    });
+  }
+}
+
+function updateUserPassword() {
+  const newP = document.getElementById('upd-pass').value;
+  if (newP.length < 6) { toast('Password must be 6+ chars'); return; }
+  const user = auth.currentUser;
+  if (user) {
+    user.updatePassword(newP).then(() => {
+      toast('Password reset successfully! 🔒');
+      document.getElementById('upd-pass').value = '';
+    }).catch(e => {
+      toast(e.message || 'Failed to reset. Re-login required.');
+    });
+  }
+}
+
+// ── MODAL ──
+function openModal(title,body){
+  document.getElementById('m-title').textContent=title;
+  document.getElementById('m-body').innerHTML=body;
+  document.getElementById('mbg').classList.add('open');
+}
+function closeModal(){document.getElementById('mbg').classList.remove('open');}
+
+// ── DETERRENT SCRIPT ──
+// Disable right-click menu
+document.addEventListener('contextmenu', event => event.preventDefault());
+
+// Disable common developer tool shortcuts
+document.onkeydown = function(e) {
+  // Disable F12
+  if (e.keyCode === 123) {
+    return false;
+  }
+  // Disable Ctrl+Shift+I (Inspect)
+  if (e.ctrlKey && e.shiftKey && e.keyCode === 73) {
+    return false;
+  }
+  // Disable Ctrl+Shift+J (Console)
+  if (e.ctrlKey && e.shiftKey && e.keyCode === 74) {
+    return false;
+  }
+  // Disable Ctrl+U (View Source)
+  if (e.ctrlKey && e.keyCode === 85) {
+    return false;
+  }
+};
+</script>
+</body>
+</html>

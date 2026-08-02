@@ -201,6 +201,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
 
   <div class="content">
 
+    <!-- TRACKER PAGE -->
     <div class="page active" id="page-tracker">
       <div class="sec-hdr">
         <div>
@@ -240,6 +241,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
     </div>
 
+    <!-- MEMBERS PAGE -->
     <div class="page" id="page-members">
       <div class="sec-hdr">
         <div>
@@ -255,6 +257,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       <div style="margin-top:.9rem;" id="mem-grid"></div>
     </div>
 
+    <!-- COSTS PAGE -->
     <div class="page" id="page-costs">
       <div class="sec-hdr">
         <div class="sec-title">💸 Food Costs</div>
@@ -311,6 +314,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
     </div>
 
+    <!-- STATS PAGE -->
     <div class="page" id="page-stats">
       <div class="sec-hdr">
         <div class="sec-title">📈 Statistics</div>
@@ -331,6 +335,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
     </div>
 
+    <!-- FUNDS PAGE -->
     <div class="page" id="page-funds">
       <div class="sec-hdr">
         <div class="sec-title">💰 Fund Collection</div>
@@ -346,6 +351,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       <div id="funds-container"></div>
     </div>
 
+    <!-- BILLS PAGE (Electric & WiFi) -->
     <div class="page" id="page-bills">
       <div class="sec-hdr">
         <div class="sec-title">🔌 Utility Bills</div>
@@ -361,6 +367,7 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       <div id="bills-container"></div>
     </div>
 
+    <!-- PROFILE PAGE -->
     <div class="page" id="page-profile">
       <div class="sec-hdr">
         <div class="sec-title">👤 My Profile</div>
@@ -393,7 +400,9 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
       </div>
     </div>
 
-  </div><nav class="bnav">
+  </div><!-- /content -->
+
+  <nav class="bnav">
     <button class="nb active" onclick="goPage('tracker',this)"><span class="ni">🗓️</span>Tracker</button>
     <button class="nb" onclick="goPage('members',this)"><span class="ni">👥</span>Members</button>
     <button class="nb" onclick="goPage('costs',this)"><span class="ni">💸</span>Costs</button>
@@ -402,7 +411,10 @@ img.rthumb{max-width:100%;border-radius:8px;margin-top:.5rem;}
     <button class="nb" onclick="goPage('bills',this)"><span class="ni">🔌</span>Bills</button>
     <button class="nb" onclick="goPage('profile',this)"><span class="ni">👤</span>Profile</button>
   </nav>
-</div><div class="mbg" id="mbg" onclick="if(event.target===this)closeModal()">
+</div><!-- /app-screen -->
+
+<!-- MODAL -->
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <button class="mcls" onclick="closeModal()">✕</button>
     <h3 id="m-title"></h3>
@@ -669,6 +681,10 @@ function renderTracker(){
   if(weekIdx>=weeks.length) weekIdx=weeks.length-1;
   if(weekIdx<0) weekIdx=0;
 
+  const isAdmin = (uName && uName.toLowerCase().includes('partha'));
+  const secSub = document.querySelector('#page-tracker .sec-sub');
+  if(secSub) secSub.textContent = isAdmin ? 'Admin: You can edit anyone\'s row' : 'Only your row is clickable';
+
   let tabs='';
   weeks.forEach((w,i)=>{
     const lbl=`W${i+1}: ${w[0].getDate()}–${w[w.length-1].getDate()}`;
@@ -694,8 +710,9 @@ function renderTracker(){
 
   let body=sub;
   mbs.forEach((m,idx)=>{
-    const isMe=m.id===uid;
-    const mm=mdata[m.id]||{};
+    const isMe = m.id === uid;
+    const canEdit = isMe || isAdmin;
+    const mm = mdata[m.id] || {};
     
     let unpaidFunds = getPendingForUser(m.id, fData);
     let unpaidBills = getPendingBillsForUser(m.id, uData);
@@ -716,7 +733,7 @@ function renderTracker(){
     week.forEach(d=>{
       const dk=fmtDate(d);
       let b=mm[dk+'_b']||'', l=mm[dk+'_l']||'';
-      const cls=isMe?'mine':'others';
+      const cls = canEdit ? 'mine' : 'others';
       
       const now = new Date();
       const isToday = now.toDateString() === d.toDateString();
@@ -729,8 +746,8 @@ function renderTracker(){
         if (isPast || (isToday && (now.getHours() > 18 || (now.getHours() === 18 && now.getMinutes() >= 30)))) l = 'cross';
       }
 
-      const ob=isMe?`onclick="tog('${m.id}','${dk}','b')"`:'' ;
-      const ol=isMe?`onclick="tog('${m.id}','${dk}','l')"`:'' ;
+      const ob = canEdit ? `onclick="tog('${m.id}','${dk}','b')"` : '' ;
+      const ol = canEdit ? `onclick="tog('${m.id}','${dk}','l')"` : '' ;
       row+=`<td><span class="mc ${b==='tick'?'tick':b==='cross'?'cross':'empty'} ${cls}" ${ob}>${b==='tick'?'✓':b==='cross'?'✗':'·'}</span></td>`;
       row+=`<td><span class="mc ${l==='tick'?'tick':l==='cross'?'cross':'empty'} ${cls}" ${ol}>${l==='tick'?'✓':l==='cross'?'✗':'·'}</span></td>`;
     });
@@ -747,18 +764,21 @@ function renderTracker(){
 function setWeek(i){weekIdx=i;renderTracker();}
 
 function tog(memId, dk, slot) {
-  if (memId !== uid) return;
+  const isAdmin = (uName && uName.toLowerCase().includes('partha'));
+  if (memId !== uid && !isAdmin) return;
   
   const now = new Date();
   const [y, m, d] = dk.split('-');
   const mealDate = new Date(y, m - 1, d);
   const isToday = now.toDateString() === mealDate.toDateString();
   
-  if (isToday) {
-    if (slot === 'b' && now.getHours() >= 13) { toast('Lunch voting closed at 1:00 PM'); return; }
-    if (slot === 'l' && (now.getHours() > 18 || (now.getHours() === 18 && now.getMinutes() >= 30))) { toast('Dinner voting closed at 6:30 PM'); return; }
-  } else if (mealDate < new Date(now.setHours(0,0,0,0))) {
-    toast('Cannot vote for past days'); return;
+  if (!isAdmin) {
+    if (isToday) {
+      if (slot === 'b' && now.getHours() >= 13) { toast('Lunch voting closed at 1:00 PM'); return; }
+      if (slot === 'l' && (now.getHours() > 18 || (now.getHours() === 18 && now.getMinutes() >= 30))) { toast('Dinner voting closed at 6:30 PM'); return; }
+    } else if (mealDate < new Date(now.setHours(0,0,0,0))) {
+      toast('Cannot vote for past days'); return;
+    }
   }
 
   const ref = db.ref(`meals/${mk(trkOff)}/${memId}/${dk}_${slot}`);
@@ -877,7 +897,6 @@ function delCost(month, id) {
 function renderCosts() {
   if (!uid) return;
   
-  // Admin check ensures only you can see the delete button
   const isAdmin = (uName && uName.toLowerCase().includes('partha')); 
 
   const month=mk(costOff);

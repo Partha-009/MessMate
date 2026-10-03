@@ -614,8 +614,19 @@ function weeksOfMonth(off){
   return weeks;
 }
 function dn(d){return['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];}
-function ini(name){return name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);}
-function membersArr(){return Object.entries(membersCache).map(([id,d])=>({id,...d}));}
+function ini(name){
+  if (typeof name !== 'string' || !name.trim()) return '??';
+  return name.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);
+}
+function membersArr(){
+  return Object.entries(membersCache)
+    .filter(([id,d]) => d && typeof d === 'object')
+    .map(([id,d]) => ({
+      id,
+      ...d,
+      name: (typeof d.name === 'string' && d.name.trim()) ? d.name : (d.username || 'Unnamed')
+    }));
+}
 function mealMonth(off){return(mealsCache[mk(off)])||{};}
 function costMonth(off){return Object.entries((costsCache[mk(off)])||{});}
 function totalMeals(off){
@@ -1047,7 +1058,7 @@ function updateTimer() {
   const tDate = fmtDate(target);
   const mdata = mealsCache[tDate.slice(0,7)] || {};
   let count = 0;
-  Object.values(mdata).forEach(mem => { if (mem[`${tDate}_${slotId}`] === 'tick') count++; });
+  Object.values(mdata).forEach(mem => { if (mem && mem[`${tDate}_${slotId}`] === 'tick') count++; });
   const nmc = document.getElementById('next-meal-count');
   if(nmc) nmc.textContent = count;
 }
@@ -1289,6 +1300,7 @@ function renderProfile() {
 }
 
 function uploadProfilePic(inp) {
+  if (!membersCache[uid] || !membersCache[uid].name) { toast('Profile record missing. Please re-register.'); return; }
   const file = inp.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
@@ -1312,6 +1324,7 @@ function uploadProfilePic(inp) {
 }
 
 function updateUsername() {
+  if (!membersCache[uid] || !membersCache[uid].name) { toast('Profile record missing. Please re-register.'); return; }
   const newU = document.getElementById('upd-uname').value.trim().toLowerCase().replace(/\s/g, '');
   if (!newU) { toast('Enter new username'); return; }
   const user = auth.currentUser;
